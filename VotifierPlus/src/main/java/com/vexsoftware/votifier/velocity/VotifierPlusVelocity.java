@@ -40,8 +40,8 @@ import com.vexsoftware.votifier.net.VoteReceiver;
 
 import lombok.Getter;
 import lombok.Setter;
-import ninja.leaping.configurate.ConfigurationNode;
-import ninja.leaping.configurate.yaml.YAMLConfigurationLoader;
+import org.spongepowered.configurate.ConfigurationNode;
+import org.spongepowered.configurate.yaml.YamlConfigurationLoader;
 
 @Plugin(id = "votifierplus", name = "VotifierPlus", version = "1.0", url = "https://www.spigotmc.org/resources/votifierplus.74040", description = "Votifier Velocity Version", authors = {
 		"BenCodez" })
@@ -85,7 +85,7 @@ public class VotifierPlusVelocity {
 		}
 
 		for (ConfigurationNode key : config.getTokens()) {
-			tokens.put(key.getKey().toString(), TokenUtil.createKeyFrom(config.getToken(key.getKey().toString())));
+			tokens.put(key.key().toString(), TokenUtil.createKeyFrom(config.getToken(key.key().toString())));
 		}
 	}
 
@@ -117,13 +117,13 @@ public class VotifierPlusVelocity {
 								}
 
 								fileWriter.close();
-								YAMLConfigurationLoader loader = YAMLConfigurationLoader.builder().setFile(versionFile)
+								YamlConfigurationLoader loader = YamlConfigurationLoader.builder().file(versionFile)
 										.build();
 								defConfigStream.close();
 								ConfigurationNode node = loader.load();
 								if (node != null) {
-									version = node.getNode("version").getString("");
-									buildNumber = node.getNode("buildnumber").getString("NOTSET");
+									version = node.node("version").getString("");
+									buildNumber = node.node("buildnumber").getString("NOTSET");
 								}
 								return;
 							}
@@ -236,7 +236,7 @@ public class VotifierPlusVelocity {
 				public Set<String> getServers() {
 					Set<String> servers = new HashSet<String>();
 					for (ConfigurationNode node : config.getServers()) {
-						servers.add(node.getKey().toString());
+						servers.add(node.key().toString());
 					}
 					return servers;
 				}
@@ -244,13 +244,13 @@ public class VotifierPlusVelocity {
 				@Override
 				public ForwardServer getServerData(String s) {
 					ConfigurationNode d = config.getServersData(s);
-					String token = d.getNode("Token").getString("");
+					String token = d.node("Token").getString("");
 					Key tokenKey = null;
 					if (!token.isEmpty()) {
 						tokenKey = TokenUtil.createKeyFrom(token);
 					}
-					return new ForwardServer(d.getNode("Enabled").getBoolean(), d.getNode("Host").getString(),
-							d.getNode("Port").getInt(), d.getNode("Key").getString(), tokenKey);
+					return new ForwardServer(d.node("Enabled").getBoolean(), d.node("Host").getString(),
+							d.node("Port").getInt(), d.node("Key").getString(), tokenKey);
 				}
 
 				@Override

@@ -35,10 +35,16 @@ import java.util.concurrent.Callable;
 import java.util.zip.ZipEntry;
 import java.util.zip.ZipInputStream;
 
+import java.util.ArrayList;
+import java.util.HashMap;
+
 import org.bukkit.Bukkit;
 import org.bukkit.configuration.ConfigurationSection;
 import org.bukkit.configuration.file.YamlConfiguration;
 import org.bukkit.entity.Player;
+import org.bukkit.event.EventHandler;
+import org.bukkit.event.Listener;
+import org.bukkit.event.player.PlayerJoinEvent;
 import org.bukkit.plugin.java.JavaPlugin;
 
 import com.bencodez.simpleapi.command.CommandHandler;
@@ -68,7 +74,9 @@ import lombok.Setter;
  * @author Blake Beaupain
  * @author Kramer Campbell
  */
-public class VotifierPlus extends JavaPlugin {
+public class VotifierPlus extends JavaPlugin implements Listener {
+
+	private HashMap<String, ArrayList<Vote>> waitingList = new HashMap<String, ArrayList<Vote>>();
 
 	/** The Votifier instance. */
 	private static VotifierPlus instance;
@@ -161,6 +169,8 @@ public class VotifierPlus extends JavaPlugin {
 		loadTokens();
 
 		loadVersionFile();
+
+		getServer().getPluginManager().registerEvents(this, this);
 
 		getCommand("votifierplus").setExecutor(new CommandVotifierPlus(this));
 		getCommand("votifierplus").setTabCompleter(new VotifierPlusTabCompleter());
@@ -321,7 +331,16 @@ public class VotifierPlus extends JavaPlugin {
 				public void callEvent(Vote vote) {
 					getBukkitScheduler().executeOrScheduleSync(instance, new Runnable() {
 						public void run() {
-							Bukkit.getServer().getPluginManager().callEvent(new VotifierEvent(vote));
+							Player player = Bukkit.getPlayer(vote.getUsername());
+							if (player != null) {
+								Bukkit.getServer().getPluginManager().callEvent(new VotifierEvent(vote));
+							} else {
+								if (!waitingList.containsKey(vote.getUsername())) {
+									waitingList.put(vote.getUsername(), new ArrayList<Vote>());
+								}
+								waitingList.get(vote.getUsername()).add(vote);
+								debug("Player " + vote.getUsername() + " is not online, adding to waiting list");
+							}
 						}
 					});
 				}
@@ -445,6 +464,19 @@ public class VotifierPlus extends JavaPlugin {
 					return "" + getBuildNumber();
 				}
 			}));
+		}
+	}
+
+	@EventHandler
+	public void onJoin(PlayerJoinEvent event) {
+		String name = event.getPlayer().getName();
+		if (waitingList.containsKey(name)) {
+			ArrayList<Vote> votes = waitingList.get(name);
+			for (Vote vote : votes) {
+				Bukkit.getServer().getPluginManager().callEvent(new VotifierEvent(vote));
+			}
+			waitingList.remove(name);
+			debug("Processed waiting votes for " + name);
 		}
 	}
 
