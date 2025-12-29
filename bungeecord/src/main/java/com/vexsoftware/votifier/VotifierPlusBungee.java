@@ -90,12 +90,12 @@ public class VotifierPlusBungee extends Plugin {
             writer.write("Port: 8192\n\n");
             writer.write("# Enable debug logging for troubleshooting.\n");
             writer.write("Debug: false\n\n");
-            writer.write("# Experimental: Enable V2 Token support.\n");
+            writer.write("# Experimental: Enable V2 Token support (NuVotifier compatible).\n");
             writer.write("TokenSupport: false\n\n");
             writer.write("# Tokens for V2 authentication.\n");
             writer.write("Tokens:\n");
             writer.write("  default: '" + TokenUtil.newToken() + "'\n\n");
-            writer.write("# Vote Forwarding: Send votes received by the proxy to your game servers.\n");
+            writer.write("# Vote Forwarding: Send received votes by the proxy to your game servers.\n");
             writer.write("Forwarding:\n");
             writer.write("  server1:\n");
             writer.write("    # Address of the target server (host:port).\n");

@@ -251,7 +251,7 @@ public class StandaloneMain {
             writer.write("Port: 8192\n\n");
             writer.write("# Enable debug logging for troubleshooting.\n");
             writer.write("Debug: false\n\n");
-            writer.write("# Experimental: Enable V2 Token support.\n");
+            writer.write("# Experimental: Enable V2 Token support (NuVotifier compatible).\n");
             writer.write("TokenSupport: false\n\n");
             writer.write("# Tokens for V2 authentication.\n");
             writer.write("Tokens:\n");

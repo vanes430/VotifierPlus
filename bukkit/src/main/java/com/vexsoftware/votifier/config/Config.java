@@ -55,10 +55,6 @@ public class Config {
                 writer.println("# |                      VotifierPlus Configuration                         |");
                 writer.println("# +-------------------------------------------------------------------------+");
                 writer.println("");
-                writer.println("# Debug levels: NONE, INFO, EXTRA.");
-                writer.println("# INFO will show basic vote logging, EXTRA will show data packets.");
-                writer.println("DebugLevel: NONE");
-                writer.println("");
                 writer.println("# The IP address to listen on. 0.0.0.0 listens on all available interfaces.");
                 writer.println("Host: 0.0.0.0");
                 writer.println("");
@@ -66,8 +62,16 @@ public class Config {
                 writer.println("# Make sure this port is open in your firewall (TCP).");
                 writer.println("Port: 8192");
                 writer.println("");
-                writer.println("# Experimental: Enable V2 Token support.");
+                writer.println("# Debug levels: NONE, INFO, EXTRA.");
+                writer.println("# INFO will show basic vote logging, EXTRA will show data packets.");
+                writer.println("DebugLevel: NONE");
+                writer.println("");
+                writer.println("# Experimental: Enable V2 Token support (NuVotifier compatible).");
                 writer.println("TokenSupport: false");
+                writer.println("");
+                writer.println("# Tokens for V2 authentication.");
+                writer.println("Tokens:");
+                writer.println("  default: '" + TokenUtil.newToken() + "'");
                 writer.println("");
                 writer.println("# Automatically clear the offline waiting list every X seconds.");
                 writer.println("# Default: 7200 (2 hours). Set to 0 to disable.");
