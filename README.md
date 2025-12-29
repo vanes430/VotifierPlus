@@ -9,7 +9,7 @@ This fork focuses on maintaining native compatibility with **Folia**, **Velocity
 ## 📥 Downloads
 
 You can always find the latest builds for all platforms here:
-**[Latest Release](https://github.com/null-folia/VotifierPlus/releases/tag/latest)**
+**[Latest Release](https://github.com/vanes430/VotifierPlus/releases/tag/latest)**
 
 ---
 
@@ -57,7 +57,11 @@ forwarding:
   survival:
     address: 127.0.0.1:8193
     enabled: true
-    key: 'PUBLIC_KEY_OF_SURVIVAL_SERVER'
+    # RSA Method: Put the public.key of the survival server here
+    key: 'RSA_PUBLIC_KEY'
+    # Token Method (V2): Set usetoken to true and provide the token
+    token: 'TOKEN_HERE'
+    usetoken: false
 ```
 
 ---
@@ -79,6 +83,19 @@ Use this if you want to run VotifierPlus as a separate process without any Minec
 | `status` | Displays JVM memory usage and system load. |
 | `stop` | Safely shuts down the application. |
 
+### Standalone Configuration (`config.yml`)
+```yaml
+host: 0.0.0.0
+port: 8192
+debug: false
+forwarding:
+  lobby:
+    address: 127.0.0.1:8193
+    enabled: true
+    key: 'RSA_PUBLIC_KEY'
+    token: 'TOKEN_HERE'
+    usetoken: false
+```
 ---
 
 ## 🛠️ Technical Details
@@ -96,4 +113,4 @@ mvn clean install
 All compiled artifacts (`.jar` files) will be automatically gathered in the root `target/` directory.
 
 ---
-© BenCodez & VexSoftware. Fork maintained by null-folia. Distributed under the MIT License.
+© BenCodez & VexSoftware. Fork maintained by vanes430. Distributed under the GNU General Public License v3.0.
