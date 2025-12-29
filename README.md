@@ -38,6 +38,36 @@ You can always find the latest builds for all platforms here:
 | `/votifierplus check` | View current waiting list. | `votifierplus.admin` |
 | `/votifierplus clear` | Manually clear waiting list. | `votifierplus.admin` |
 
+### Bukkit Configuration (`config.yml`)
+
+The configuration is automatically generated with detailed comments. Key settings include:
+
+```yaml
+# IP to listen on. 0.0.0.0 listens on all interfaces.
+host: 0.0.0.0
+
+# Port to listen on (default 8192). Open this in your firewall.
+port: 8192
+
+# Logging: NONE, INFO (basic), EXTRA (detailed packets).
+DebugLevel: NONE
+
+# Seconds to keep votes for offline players before auto-clearing.
+AutoClearDelay: 7200
+
+# Vote Forwarding: Send votes to other servers.
+Forwarding:
+  server1:
+    Enabled: false
+    Host: '127.0.0.1'
+    Port: 8193
+    # RSA Public Key of the target server.
+    Key: 'RSA_PUBLIC_KEY'
+    # Use V2 Token authentication instead of RSA.
+    UseToken: false
+    Token: 'TOKEN_HERE'
+```
+
 ---
 
 ## 🔵 BungeeCord & Velocity
@@ -50,16 +80,24 @@ You can always find the latest builds for all platforms here:
 
 ### Proxy Configuration (`config.yml`)
 ```yaml
+# +-------------------------------------------------------------------------+
+# |                    VotifierPlus Proxy Configuration                     |
+# +-------------------------------------------------------------------------+
+
 host: 0.0.0.0
 port: 8192
 debug: false
+
+# Vote Forwarding: Send votes received by the proxy to your game servers.
 forwarding:
   survival:
     address: 127.0.0.1:8193
     enabled: true
-    # RSA Method: Put the public.key of the survival server here
+    # --- RSA Method ---
+    # Put the public.key of the target (survival) server here.
     key: 'RSA_PUBLIC_KEY'
-    # Token Method (V2): Set usetoken to true and provide the token
+    # --- Token Method (V2) ---
+    # Set usetoken to true and provide the token from the target server.
     token: 'TOKEN_HERE'
     usetoken: false
 ```
@@ -70,24 +108,21 @@ forwarding:
 
 Use this if you want to run VotifierPlus as a separate process without any Minecraft server software.
 
-### Installation
+### Installation & Commands
 1.  Download `VotifierPlus-Standalone.jar`.
-2.  Run it using: `java -jar VotifierPlus-Standalone.jar`.
-3.  On the first run, it will generate `config.yml` and `rsa/` keys.
-4.  Configure your forwarding targets in `config.yml` and restart the app.
-
-### Console Commands
-| Command | Description |
-| :--- | :--- |
-| `uptime` | Shows how long the application has been running. |
-| `status` | Displays JVM memory usage and system load. |
-| `stop` | Safely shuts down the application. |
+2.  Run: `java -jar VotifierPlus-Standalone.jar`.
+3.  Available Console Commands: `uptime`, `status`, `stop`.
 
 ### Standalone Configuration (`config.yml`)
 ```yaml
+# +-------------------------------------------------------------------------+
+# |                  VotifierPlus Standalone Configuration                  |
+# +-------------------------------------------------------------------------+
+
 host: 0.0.0.0
 port: 8192
 debug: false
+
 forwarding:
   lobby:
     address: 127.0.0.1:8193
@@ -96,6 +131,7 @@ forwarding:
     token: 'TOKEN_HERE'
     usetoken: false
 ```
+
 ---
 
 ## 🛠️ Technical Details
@@ -103,7 +139,10 @@ forwarding:
 ### RSA Encryption
 All versions generate a pair of RSA keys in the `rsa/` folder.
 *   **public.key**: Shared with voting sites or proxy configs.
-*   **private.key**: Keep this file secret!
+*   **private.key**: **KEEP THIS SECRET!** It is used to decrypt your votes.
+
+### V2 Token Authentication
+VotifierPlus supports an alternative HMAC-SHA256 token-based authentication. This is often easier to configure than RSA keys for internal forwarding.
 
 ### Compiling from Source
 Requires JDK 21 and Maven:
