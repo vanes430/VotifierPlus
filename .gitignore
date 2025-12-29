@@ -1,0 +1,21 @@
+# Build artifacts
+target/
+**/target/
+*.jar
+dependency-reduced-pom.xml
+
+# IDE files
+.idea/
+*.iml
+.settings/
+.classpath
+.project
+**/.settings/
+**/.classpath
+**/.project
+.vscode/
+
+# Sensitive Data & Logs
+rsa/
+**/rsa/
+*.log
