@@ -127,7 +127,7 @@ public class Config {
         this.port = config.getInt("Port", 8192);
         
         String debugStr = config.getString("DebugLevel", "NONE");
-        this.debug = debugStr.equalsIgnoreCase("INFO") || debugStr.equalsIgnoreCase("EXTRA") || debugStr.equalsIgnoreCase("DEV") || config.getBoolean("debug", false);
+        this.debug = debugStr.equalsIgnoreCase("INFO") || debugStr.equalsIgnoreCase("EXTRA") || debugStr.equalsIgnoreCase("DEV") || config.getBoolean("Debug", false);
 
         ConfigurationSection forwardingSection = config.getConfigurationSection("Forwarding");
         if (forwardingSection != null) {

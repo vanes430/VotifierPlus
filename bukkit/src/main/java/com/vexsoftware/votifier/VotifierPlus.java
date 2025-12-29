@@ -88,11 +88,11 @@ public class VotifierPlus extends JavaPlugin implements Listener {
 	private void loadTokens() {
 		tokens.clear();
 		FileConfiguration config = getConfig();
-		if (!config.contains("tokens")) {
-			configFile.setValue("tokens.default", TokenUtil.newToken());
+		if (!config.contains("Tokens")) {
+			configFile.setValue("Tokens.default", TokenUtil.newToken());
 		}
 
-		ConfigurationSection section = config.getConfigurationSection("tokens");
+		ConfigurationSection section = config.getConfigurationSection("Tokens");
 		if (section != null) {
 			for (String key : section.getKeys(false)) {
 				tokens.put(key, TokenUtil.createKeyFrom(section.getString(key)));
@@ -109,7 +109,7 @@ public class VotifierPlus extends JavaPlugin implements Listener {
 		// Config setup handled in Config constructor
 
 		// Initial setup for port if config is fresh (simulated)
-		if (getConfig().getInt("port", 0) == 0) {
+		if (getConfig().getInt("Port", 0) == 0) {
 			int openPort = 8192;
 			try {
 				ServerSocket s = new ServerSocket();
@@ -119,8 +119,8 @@ public class VotifierPlus extends JavaPlugin implements Listener {
 			} catch (Exception e) {
 			}
 			getLogger().info("Configuring Votifier for the first time...");
-			configFile.setValue("port", openPort);
-			configFile.setValue("tokens.default", TokenUtil.newToken());
+			configFile.setValue("Port", openPort);
+			configFile.setValue("Tokens.default", TokenUtil.newToken());
 			getLogger().info("Assigned port: " + openPort);
 		}
 		

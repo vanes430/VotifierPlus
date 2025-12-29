@@ -170,13 +170,13 @@ public class VotifierPlusBungee extends Plugin {
     }
 
     public void reload() {
-        int oldPort = (int) config.getOrDefault("port", 8192);
+        int oldPort = (int) config.getOrDefault("Port", 8192);
         loadConfig();
         loadTokens();
         loadKeys();
         startVoteReceiver();
         
-        int newPort = (int) config.getOrDefault("port", 8192);
+        int newPort = (int) config.getOrDefault("Port", 8192);
         if (oldPort != newPort) {
             getLogger().warning("Port changed during reload. A BungeeCord restart is required for the new port to take effect!");
         }

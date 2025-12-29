@@ -150,20 +150,25 @@ public abstract class VoteReceiver extends Thread {
 			throw new IOException("Not enough data available to determine vote protocol version.");
 		}
 
+		// Check for JSON start
 		if ((char) header[0] == '{') {
 			in.unread(header, 0, bytesRead);
 			return VoteProtocolVersion.V2;
 		}
 
-		// Wrap the header bytes into a ByteBuffer for magic value checking.
+		// Wrap the header bytes into a ByteBuffer for magic value checking (NuVotifier header 's:')
 		java.nio.ByteBuffer buf = java.nio.ByteBuffer.wrap(header);
 		short magic = buf.getShort(0);
+		
 		// Push the header bytes back into the stream.
 		in.unread(header, 0, bytesRead);
 
+		// If TokenSupport is disabled, we should be very skeptical of V2 detection 
+		// unless it's a clear JSON start '{'.
 		if (magic == PROTOCOL_2_MAGIC) {
 			return VoteProtocolVersion.V2;
 		}
+		
 		return VoteProtocolVersion.V1;
 	}
 
@@ -178,31 +183,16 @@ public abstract class VoteReceiver extends Thread {
 				PushbackInputStream in = new PushbackInputStream(socket.getInputStream(), 512);
 				BufferedWriter writer = new BufferedWriter(new OutputStreamWriter(socket.getOutputStream()));
 
-				// Send handshake greeting immediately.
-				String message = "";
-				if (isUseTokens()) {
-					message = "VOTIFIER 2";
-				} else {
-					message = "VOTIFIER 1";
-				}
+				// Send handshake greeting.
+				// Some V1 senders send data immediately without waiting for a handshake.
 				String challenge = getChallenge();
-				if (isUseTokens()) {
-					message += " " + challenge;
-				}
-				// Check for pre-existing V1 vote payload before sending handshake.
-				// Some sites may send a vote payload immediately after connecting.
-				int avail = in.available();
-
-				if (avail >= 256) {
-					// If there are at least 256 bytes available, assume this is a legacy V1 vote
-					// payload.
-					debug("Detected V1 vote payload before handshake (available bytes: " + avail
-							+ "), skipping handshake.");
-				} else {
-					writer.write(message);
-					writer.newLine();
+				if (in.available() < 256) {
+					String handshake = (isUseTokens() ? "VOTIFIER 2 " + challenge : "VOTIFIER 1") + "\n";
+					writer.write(handshake);
 					writer.flush();
-					debug("Sent handshake: " + message);
+					debug("Sent handshake: " + handshake.trim());
+				} else {
+					debug("Immediate data detected (" + in.available() + " bytes), skipping handshake.");
 				}
 
 				// Process any proxy headers if available.
@@ -210,15 +200,16 @@ public abstract class VoteReceiver extends Thread {
 					processProxyHeaders(in, writer);
 				}
 
-				// Wait for vote payload for up to 2000ms.
+				// Wait for vote payload for up to 3000ms.
 				long waitStart = System.currentTimeMillis();
-				while (in.available() == 0 && System.currentTimeMillis() - waitStart < 2000) {
+				while (in.available() == 0 && System.currentTimeMillis() - waitStart < 3000) {
 					try {
 						Thread.sleep(50);
 					} catch (InterruptedException ie) {
 						Thread.currentThread().interrupt();
 					}
 				}
+				
 				if (in.available() == 0) {
 					debug("No vote payload received after handshake; closing connection from " + address);
 					writer.close();
@@ -229,13 +220,28 @@ public abstract class VoteReceiver extends Thread {
 
 				// --- Determine protocol type and read vote payload ---
 				VoteProtocolVersion voteProtocolVersion = checkVoteVersion(in);
+				
+				// Handle protocol mismatch: V2 detected but not enabled
+				if (voteProtocolVersion == VoteProtocolVersion.V2 && !isUseTokens()) {
+					logWarning("Detected V2 vote payload from " + address + " but TokenSupport is currently disabled.");
+					logWarning("To support V2 (JSON/Token) votes, please enable 'TokenSupport: true' in your configuration.");
+					// Consume and ignore
+					in.skip(in.available());
+					continue;
+				}
+
 				debug("Detected vote protocol version: " + voteProtocolVersion.toString());
 				String voteData = null;
 				if (voteProtocolVersion.equals(VoteProtocolVersion.V1)) {
 					byte[] block = new byte[256];
 					int totalRead = 0;
-					long startTime = System.currentTimeMillis();
-					debug("Reading V1 vote block (256 bytes expected) at " + startTime + " ms");
+					debug("Reading V1 vote block (256 bytes expected) from " + address);
+
+					// Wait for the full block
+					long v1Wait = System.currentTimeMillis();
+					while (in.available() < 256 && System.currentTimeMillis() - v1Wait < 2000) {
+						Thread.sleep(50);
+					}
 
 					if (in.available() < 256) {
 						debug("Insufficient data available for V1 vote block; closing connection from " + address);
@@ -244,31 +250,22 @@ public abstract class VoteReceiver extends Thread {
 						socket.close();
 						continue;
 					} else {
-
 						while (totalRead < block.length) {
-							int remaining = block.length - totalRead;
-							int r = in.read(block, totalRead, remaining);
-							if (r == -1) {
-								debug("Reached end-of-stream unexpectedly after " + totalRead + " bytes from "
-										+ address);
-								break;
-							}
+							int r = in.read(block, totalRead, block.length - totalRead);
+							if (r == -1) break;
 							totalRead += r;
-							debug("Read " + r + " bytes; total: " + totalRead);
 						}
+						
 						if (totalRead == 256) {
 							byte[] decrypted;
 							try {
 								decrypted = RSA.decrypt(block, getKeyPair().getPrivate());
 							} catch (BadPaddingException e) {
-								StringBuilder blockHex = new StringBuilder();
-								for (byte b : block) {
-									blockHex.append(String.format("%02X ", b));
-								}
-								logWarning(
-										"Decryption failed. Either the vote block is invalid or the public key does not match the server list from "
-												+ address);
-								throw e;
+								logWarning("Decryption failed for " + address + ". The public key likely does not match or the data is corrupt.");
+								writer.close();
+								in.close();
+								socket.close();
+								continue;
 							}
 							int position = 0;
 							String opcode = readString(decrypted, position);
@@ -288,20 +285,53 @@ public abstract class VoteReceiver extends Thread {
 									+ "\n";
 							debug("Processed V1 vote block.");
 						} else {
-							debug("Failed to read V1 vote, random ping? expected 256 bytes, got " + totalRead);
+							debug("Failed to read V1 vote, expected 256 bytes, got " + totalRead);
 							continue;
-							// throw new Exception("Failed to read V1 vote block: expected 256 bytes, got "
-							// + totalRead);
 						}
 					}
-				}
-				if (voteProtocolVersion.equals(VoteProtocolVersion.V2)) {
-					// In V2 mode, always parse as JSON.
+				} else if (voteProtocolVersion.equals(VoteProtocolVersion.V2)) {
+					// Read V2 Payload
 					ByteArrayOutputStream voteDataStream = new ByteArrayOutputStream();
-					int b;
-					while (in.available() > 0 && (b = in.read()) != -1) {
-						voteDataStream.write(b);
+					
+					// Peek for magic
+					byte[] header = new byte[2];
+					int read = in.read(header);
+					
+					int length = -1;
+					if (read == 2 && header[0] == 0x73 && header[1] == 0x3A) {
+						// NuVotifier style: s: + short length
+						byte[] lenBytes = new byte[2];
+						in.read(lenBytes);
+						length = ((lenBytes[0] & 0xFF) << 8) | (lenBytes[1] & 0xFF);
+						debug("NuVotifier V2 magic detected, expected length: " + length);
+						
+						byte[] buffer = new byte[length];
+						int totalRead = 0;
+						while (totalRead < length) {
+							int r = in.read(buffer, totalRead, length - totalRead);
+							if (r == -1) break;
+							totalRead += r;
+						}
+						voteDataStream.write(buffer, 0, totalRead);
+					} else {
+						// Pure JSON style, push back and read until balanced braces
+						if (read > 0) in.unread(header, 0, read);
+						
+						int b;
+						int braceCount = 0;
+						boolean started = false;
+						while ((b = in.read()) != -1) {
+							voteDataStream.write(b);
+							if (b == '{') {
+								braceCount++;
+								started = true;
+							} else if (b == '}') {
+								braceCount--;
+							}
+							if (started && braceCount == 0) break;
+						}
 					}
+					
 					voteData = voteDataStream.toString("UTF-8").trim();
 					debug("Received raw V2 vote payload: [" + voteData + "]");
 				}
@@ -436,9 +466,8 @@ public abstract class VoteReceiver extends Thread {
 					logWarning("Votifier socket closed.");
 				}
 			} catch (BadPaddingException ex) {
-				logWarning("Unable to decrypt vote record from: " + address
-						+ ". Make sure that your public key matches the one you gave the server list.");
-				debug(ex);
+				// Handled locally in V1 block, but here for safety
+				logWarning("Unable to decrypt vote record from: " + address);
 			} catch (SocketTimeoutException ex) {
 				logWarning("Socket timeout while waiting for vote payload from: " + address + " - " + ex.getMessage());
 				debug(ex);
@@ -496,12 +525,21 @@ public abstract class VoteReceiver extends Thread {
 					String sig = Base64.getEncoder()
 							.encodeToString(mac.doFinal(innerStr.getBytes(StandardCharsets.UTF_8)));
 
-					// Outer JSON with CRLF
+					// Outer JSON
 					JsonObject outer = new JsonObject();
 					outer.addProperty("payload", innerStr);
 					outer.addProperty("signature", sig);
-					String jsonVote = outer.toString() + "\r\n";
-					payload = jsonVote.getBytes(StandardCharsets.UTF_8);
+					String jsonVote = outer.toString();
+					byte[] jsonBytes = jsonVote.getBytes(StandardCharsets.UTF_8);
+
+					// NuVotifier header: s: (2 bytes) + length (2 bytes)
+					ByteArrayOutputStream baos = new ByteArrayOutputStream();
+					baos.write(0x73);
+					baos.write(0x3A);
+					baos.write((jsonBytes.length >> 8) & 0xFF);
+					baos.write(jsonBytes.length & 0xFF);
+					baos.write(jsonBytes);
+					payload = baos.toByteArray();
 
 				} else {
 					// Legacy V1 RSA-encrypted block
@@ -657,7 +695,7 @@ public abstract class VoteReceiver extends Thread {
 	 */
 	private boolean hmacEqual(byte[] providedSig, byte[] data, Key key) throws Exception {
 		Mac mac = Mac.getInstance("HmacSHA256");
-		mac.init(new SecretKeySpec(key.getEncoded(), "HmacSHA256"));
+		mac.init(key);
 		byte[] computed = mac.doFinal(data);
 		if (providedSig.length != computed.length) {
 			return false;
