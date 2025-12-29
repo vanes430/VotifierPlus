@@ -43,13 +43,19 @@ You can always find the latest builds for all platforms here:
 The configuration is automatically generated with detailed comments. Key settings include:
 
 ```yaml
-# IP to listen on. 0.0.0.0 listens on all interfaces.
+# +-------------------------------------------------------------------------+
+# |                      VotifierPlus Configuration                         |
+# +-------------------------------------------------------------------------+
+
+# The IP address to listen on. 0.0.0.0 listens on all available interfaces.
 Host: 0.0.0.0
 
-# Port to listen on (default 8192). Open this in your firewall.
+# The port to listen on. Default is 8192.
+# Make sure this port is open in your firewall (TCP).
 Port: 8192
 
-# Logging: NONE, INFO (basic), EXTRA (detailed packets).
+# Debug levels: NONE, INFO, EXTRA.
+# INFO will show basic vote logging, EXTRA will show data packets.
 DebugLevel: NONE
 
 # Experimental: Enable V2 Token support (NuVotifier compatible).
@@ -59,20 +65,26 @@ TokenSupport: false
 Tokens:
   default: 'YOUR_GENERATED_TOKEN'
 
-# Seconds to keep votes for offline players before auto-clearing.
+# Automatically clear the offline waiting list every X seconds.
+# Default: 7200 (2 hours). Set to 0 to disable.
 AutoClearDelay: 7200
 
-# Vote Forwarding: Send votes to other servers.
+# Vote Forwarding: Send received votes to other servers.
 Forwarding:
   server1:
+    # Whether forwarding to this server is enabled.
     Enabled: false
+    # The IP address of the target server.
     Host: '127.0.0.1'
+    # The port of the target server's VotifierPlus.
     Port: 8193
-    # RSA Public Key of the target server.
-    Key: 'RSA_PUBLIC_KEY'
-    # Use V2 Token authentication instead of RSA.
+    # RSA Public Key of the target server (required if UseToken is false).
+    Key: ''
+    # Token used for V2 authentication.
+    # Leave empty to generate a new token automatically.
+    Token: ''
+    # Use V2 Token authentication instead of RSA keys.
     UseToken: false
-    Token: 'TOKEN_HERE'
 ```
 
 ---
@@ -91,27 +103,35 @@ Forwarding:
 # |                    VotifierPlus Proxy Configuration                     |
 # +-------------------------------------------------------------------------+
 
+# The IP address to listen on. 0.0.0.0 listens on all interfaces.
 Host: 0.0.0.0
+
+# The port to listen on. Default is 8192.
 Port: 8192
+
+# Enable debug logging for troubleshooting.
 Debug: false
+
+# Experimental: Enable V2 Token support (NuVotifier compatible).
 TokenSupport: false
 
 # Tokens for V2 authentication.
 Tokens:
   default: 'YOUR_GENERATED_TOKEN'
 
-# Vote Forwarding: Send votes received by the proxy to your game servers.
+# Vote Forwarding: Send received votes by the proxy to your game servers.
 Forwarding:
-  survival:
+  server1:
+    # Address of the target server (host:port).
     Address: 127.0.0.1:8193
-    Enabled: true
-    # --- RSA Method ---
-    # Put the public.key of the target (survival) server here.
-    Key: 'RSA_PUBLIC_KEY'
-    # --- Token Method (V2) ---
-    # Set UseToken to true and provide the token from the target server.
-    Token: 'TOKEN_HERE'
+    # RSA Public Key of the target server.
+    Key: ''
+    # Token for V2 authentication (if UseToken is true).
+    Token: ''
+    # Use V2 Token authentication instead of RSA keys.
     UseToken: false
+    # Whether forwarding to this server is enabled.
+    Enabled: false
 ```
 
 ---
@@ -131,22 +151,35 @@ Use this if you want to run VotifierPlus as a separate process without any Minec
 # |                  VotifierPlus Standalone Configuration                  |
 # +-------------------------------------------------------------------------+
 
+# The IP address to listen on. 0.0.0.0 listens on all interfaces.
 Host: 0.0.0.0
+
+# The port to listen on. Default is 8192.
 Port: 8192
+
+# Enable debug logging for troubleshooting.
 Debug: false
+
+# Experimental: Enable V2 Token support (NuVotifier compatible).
 TokenSupport: false
 
 # Tokens for V2 authentication.
 Tokens:
   default: 'YOUR_GENERATED_TOKEN'
 
+# Vote Forwarding: Send votes received by this application to other servers.
 Forwarding:
   lobby:
+    # Address of the target server (host:port).
     Address: 127.0.0.1:8193
-    Enabled: true
-    Key: 'RSA_PUBLIC_KEY'
-    Token: 'TOKEN_HERE'
+    # RSA Public Key of the target server.
+    Key: ''
+    # Token for V2 authentication (if UseToken is true).
+    Token: ''
+    # Use V2 Token authentication instead of RSA keys.
     UseToken: false
+    # Whether forwarding to this server is enabled.
+    Enabled: false
 ```
 
 ---
