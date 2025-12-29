@@ -24,6 +24,13 @@ jobs:
       - name: Build with Maven
         run: mvn -B clean install
 
+      - name: Delete old release and tag
+        if: github.ref == 'refs/heads/master'
+        run: |
+          gh release delete latest --cleanup-tag -y || true
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
       - name: Update Latest Release
         if: github.ref == 'refs/heads/master'
         uses: softprops/action-gh-release@v2
@@ -33,6 +40,7 @@ jobs:
           target_commitish: ${{ github.sha }}
           body: |
             Automated build from the latest commit.
+            
             **Build Time:** ${{ github.event.head_commit.timestamp }}
             **Commit:** ${{ github.sha }}
           files: target/*.jar
