@@ -52,7 +52,7 @@ Port: 8192
 # Logging: NONE, INFO (basic), EXTRA (detailed packets).
 DebugLevel: NONE
 
-# Experimental: Enable V2 Token support.
+# Experimental: Enable V2 Token support (NuVotifier compatible).
 TokenSupport: false
 
 # Tokens for V2 authentication.
@@ -159,7 +159,10 @@ All versions generate a pair of RSA keys in the `rsa/` folder.
 *   **private.key**: **KEEP THIS SECRET!** It is used to decrypt your votes.
 
 ### V2 Token Authentication
-VotifierPlus supports an alternative HMAC-SHA256 token-based authentication. This is often easier to configure than RSA keys for internal forwarding.
+VotifierPlus supports an alternative HMAC-SHA256 token-based authentication (NuVotifier V2 compatible). This is often easier to configure than RSA keys for internal forwarding and provides better performance.
+
+### Configuration Standard
+All configuration files now use **PascalCase** for keys (e.g., `Host`, `Port`, `TokenSupport`) to ensure a consistent and clean structure across all platforms.
 
 ### Compiling from Source
 Requires JDK 21 and Maven:
