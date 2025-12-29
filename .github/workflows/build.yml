@@ -30,7 +30,13 @@ jobs:
         with:
           tag_name: latest
           name: Latest Release
+          target_commitish: ${{ github.sha }}
+          body: |
+            Automated build from the latest commit.
+            **Build Time:** ${{ github.event.head_commit.timestamp }}
+            **Commit:** ${{ github.sha }}
           files: target/*.jar
           draft: false
           prerelease: false
           make_latest: true
+          generate_release_notes: true
