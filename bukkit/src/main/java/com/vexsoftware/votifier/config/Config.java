@@ -51,36 +51,43 @@ public class Config {
         if (!file.exists()) {
             plugin.getLogger().info("Generating config.yml...");
             try (java.io.PrintWriter writer = new java.io.PrintWriter(new java.io.FileWriter(file))) {
-                writer.println("# Debug levels:");
-                writer.println("# NONE");
-                writer.println("# INFO");
-                writer.println("# EXTRA");
+                writer.println("# +-------------------------------------------------------------------------+");
+                writer.println("# |                      VotifierPlus Configuration                         |");
+                writer.println("# +-------------------------------------------------------------------------+");
+                writer.println("");
+                writer.println("# Debug levels: NONE, INFO, EXTRA.");
+                writer.println("# INFO will show basic vote logging, EXTRA will show data packets.");
                 writer.println("DebugLevel: NONE");
                 writer.println("");
-                writer.println("# The host VotifierPlus will listen on");
-                writer.println("host: 0.0.0.0");
+                writer.println("# The IP address to listen on. 0.0.0.0 listens on all available interfaces.");
+                writer.println("Host: 0.0.0.0");
                 writer.println("");
-                writer.println("# The port VotifierPlus will listen on");
-                writer.println("port: 8192");
+                writer.println("# The port to listen on. Default is 8192.");
+                writer.println("# Make sure this port is open in your firewall (TCP).");
+                writer.println("Port: 8192");
                 writer.println("");
-                writer.println("# This is still new to VotifierPlus, so it's disabled by default.");
+                writer.println("# Experimental: Enable V2 Token support.");
                 writer.println("TokenSupport: false");
                 writer.println("");
-                writer.println("# Auto-clear waiting list every X seconds (Default: 7200 = 2 hours)");
-                writer.println("# Set to 0 to disable.");
+                writer.println("# Automatically clear the offline waiting list every X seconds.");
+                writer.println("# Default: 7200 (2 hours). Set to 0 to disable.");
                 writer.println("AutoClearDelay: 7200");
                 writer.println("");
-                writer.println("# Vote Forwarding Configuration");
+                writer.println("# Vote Forwarding: Send received votes to other servers.");
                 writer.println("Forwarding:");
                 writer.println("  server1:");
+                writer.println("    # Whether forwarding to this server is enabled.");
                 writer.println("    Enabled: false");
+                writer.println("    # The IP address of the target server.");
                 writer.println("    Host: '127.0.0.1'");
+                writer.println("    # The port of the target server's VotifierPlus.");
                 writer.println("    Port: 8193");
+                writer.println("    # RSA Public Key of the target server (required if UseToken is false).");
                 writer.println("    Key: ''");
-                writer.println("    # Token used for authentication.");
+                writer.println("    # Token used for V2 authentication.");
                 writer.println("    # Leave empty to generate a new token automatically.");
                 writer.println("    Token: ''");
-                writer.println("    # Use token for authentication instead of RSA key.");
+                writer.println("    # Use V2 Token authentication instead of RSA keys.");
                 writer.println("    UseToken: false");
             } catch (java.io.IOException e) {
                 plugin.getLogger().log(Level.SEVERE, "Could not generate config.yml", e);
@@ -116,8 +123,8 @@ public class Config {
     public void loadValues() {
         FileConfiguration config = plugin.getConfig();
 
-        this.host = config.getString("host", "0.0.0.0");
-        this.port = config.getInt("port", 8192);
+        this.host = config.getString("Host", "0.0.0.0");
+        this.port = config.getInt("Port", 8192);
         
         String debugStr = config.getString("DebugLevel", "NONE");
         this.debug = debugStr.equalsIgnoreCase("INFO") || debugStr.equalsIgnoreCase("EXTRA") || debugStr.equalsIgnoreCase("DEV") || config.getBoolean("debug", false);

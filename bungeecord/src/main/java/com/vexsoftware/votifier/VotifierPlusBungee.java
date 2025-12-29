@@ -21,11 +21,13 @@ public class VotifierPlusBungee extends Plugin {
     private Map<String, Object> config;
     private VoteReceiver voteReceiver;
     private KeyPair keyPair;
+    private Map<String, Key> tokens = new HashMap<>();
 
     @Override
     public void onEnable() {
         getLogger().info("Initializing VotifierPlus for BungeeCord...");
         loadConfig();
+        loadTokens();
         loadKeys();
         startVoteReceiver();
         
@@ -54,17 +56,58 @@ public class VotifierPlusBungee extends Plugin {
         }
     }
 
+    private void loadTokens() {
+        tokens.clear();
+        Map<String, String> tokensConfig = (Map<String, String>) config.get("Tokens");
+        if (tokensConfig == null) {
+            tokensConfig = new HashMap<>();
+            tokensConfig.put("default", TokenUtil.newToken());
+            config.put("Tokens", tokensConfig);
+            saveConfig();
+        }
+        for (Map.Entry<String, String> entry : tokensConfig.entrySet()) {
+            tokens.put(entry.getKey(), TokenUtil.createKeyFrom(entry.getValue()));
+        }
+    }
+
+    private void saveConfig() {
+        File configFile = new File(getDataFolder(), "config.yml");
+        try (FileWriter writer = new FileWriter(configFile)) {
+            new Yaml().dump(config, writer);
+        } catch (IOException e) {
+            getLogger().severe("Could not save config.yml: " + e.getMessage());
+        }
+    }
+
     private void createDefaultConfig(File file) {
         try (FileWriter writer = new FileWriter(file)) {
-            writer.write("host: 0.0.0.0\n");
-            writer.write("port: 8192\n");
-            writer.write("debug: false\n");
-            writer.write("forwarding:\n");
+            writer.write("# +-------------------------------------------------------------------------+\n");
+            writer.write("# |                    VotifierPlus Bungee Configuration                    |\n");
+            writer.write("# +-------------------------------------------------------------------------+\n\n");
+            writer.write("# The IP address to listen on. 0.0.0.0 listens on all interfaces.\n");
+            writer.write("Host: 0.0.0.0\n\n");
+            writer.write("# The port to listen on. Default is 8192.\n");
+            writer.write("Port: 8192\n\n");
+            writer.write("# Enable debug logging for troubleshooting.\n");
+            writer.write("Debug: false\n\n");
+            writer.write("# Experimental: Enable V2 Token support.\n");
+            writer.write("TokenSupport: false\n\n");
+            writer.write("# Tokens for V2 authentication.\n");
+            writer.write("Tokens:\n");
+            writer.write("  default: '" + TokenUtil.newToken() + "'\n\n");
+            writer.write("# Vote Forwarding: Send votes received by the proxy to your game servers.\n");
+            writer.write("Forwarding:\n");
             writer.write("  server1:\n");
-            writer.write("    address: 127.0.0.1:8193\n");
-            writer.write("    token: ''\n");
-            writer.write("    usetoken: false\n");
-            writer.write("    enabled: false\n");
+            writer.write("    # Address of the target server (host:port).\n");
+            writer.write("    Address: 127.0.0.1:8193\n");
+            writer.write("    # RSA Public Key of the target server.\n");
+            writer.write("    Key: ''\n");
+            writer.write("    # Token for V2 authentication (if UseToken is true).\n");
+            writer.write("    Token: ''\n");
+            writer.write("    # Use V2 Token authentication instead of RSA keys.\n");
+            writer.write("    UseToken: false\n");
+            writer.write("    # Whether forwarding to this server is enabled.\n");
+            writer.write("    Enabled: false\n");
         } catch (IOException e) {
             getLogger().severe("Could not create default config: " + e.getMessage());
         }
@@ -90,33 +133,33 @@ public class VotifierPlusBungee extends Plugin {
             voteReceiver.shutdown();
         }
         
-        String host = (String) config.getOrDefault("host", "0.0.0.0");
-        int port = (int) config.getOrDefault("port", 8192);
+        String host = (String) config.getOrDefault("Host", "0.0.0.0");
+        int port = (int) config.getOrDefault("Port", 8192);
 
         try {
             voteReceiver = new VoteReceiver(host, port) {
                 @Override public void logWarning(String warn) { getLogger().warning(warn); }
                 @Override public void logSevere(String msg) { getLogger().severe(msg); }
                 @Override public void log(String msg) { getLogger().info(msg); }
-                @Override public boolean isUseTokens() { return false; }
+                @Override public boolean isUseTokens() { return (Boolean) config.getOrDefault("TokenSupport", false); }
                 @Override public String getVersion() { return getDescription().getVersion() + "-Bungee"; }
-                @Override public Map<String, Key> getTokens() { return new HashMap<>(); }
+                @Override public Map<String, Key> getTokens() { return tokens; }
                 @Override public Set<String> getServers() {
-                    Map<String, Object> forwarding = (Map<String, Object>) config.get("forwarding");
+                    Map<String, Object> forwarding = (Map<String, Object>) config.get("Forwarding");
                     return forwarding != null ? forwarding.keySet() : Set.of();
                 }
                 @Override public ForwardServer getServerData(String s) {
-                    Map<String, Object> forwarding = (Map<String, Object>) config.get("forwarding");
+                    Map<String, Object> forwarding = (Map<String, Object>) config.get("Forwarding");
                     Map<String, Object> sc = (Map<String, Object>) forwarding.get(s);
-                    String addr = (String) sc.get("address");
+                    String addr = (String) sc.getOrDefault("Address", "127.0.0.1:8192");
                     String[] split = addr.split(":");
-                    String tokenStr = (String) sc.getOrDefault("token", "");
+                    String tokenStr = (String) sc.getOrDefault("Token", "");
                     Key tKey = (tokenStr != null && !tokenStr.isEmpty()) ? TokenUtil.createKeyFrom(tokenStr) : null;
-                    return new ForwardServer((Boolean) sc.getOrDefault("enabled", true), split[0], Integer.parseInt(split[1]), (String) sc.getOrDefault("key", ""), tKey, (Boolean) sc.getOrDefault("usetoken", false));
+                    return new ForwardServer((Boolean) sc.getOrDefault("Enabled", true), split[0], Integer.parseInt(split[1]), (String) sc.getOrDefault("Key", ""), tKey, (Boolean) sc.getOrDefault("UseToken", false));
                 }
                 @Override public KeyPair getKeyPair() { return keyPair; }
-                @Override public void debug(String msg) { if (Boolean.TRUE.equals(config.get("debug"))) getLogger().info("[DEBUG] " + msg); }
-                @Override public void debug(Exception e) { if (Boolean.TRUE.equals(config.get("debug"))) e.printStackTrace(); }
+                @Override public void debug(String msg) { if (Boolean.TRUE.equals(config.get("Debug"))) getLogger().info("[DEBUG] " + msg); }
+                @Override public void debug(Exception e) { if (Boolean.TRUE.equals(config.get("Debug"))) e.printStackTrace(); }
                 @Override public void callEvent(Vote e) { getLogger().info("Vote received for " + e.getUsername()); }
             };
             voteReceiver.start();
@@ -129,6 +172,7 @@ public class VotifierPlusBungee extends Plugin {
     public void reload() {
         int oldPort = (int) config.getOrDefault("port", 8192);
         loadConfig();
+        loadTokens();
         loadKeys();
         startVoteReceiver();
         

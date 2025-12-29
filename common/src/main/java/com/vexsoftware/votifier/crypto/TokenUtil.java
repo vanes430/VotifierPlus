@@ -11,7 +11,7 @@ public class TokenUtil {
 	private static final SecureRandom RANDOM = new SecureRandom();
 
 	public static String newToken() {
-		return new BigInteger(130, RANDOM).toString(32);
+		return new BigInteger(130, RANDOM).toString(32).toUpperCase();
 	}
 	
 	 public static Key createKeyFrom(String token) {

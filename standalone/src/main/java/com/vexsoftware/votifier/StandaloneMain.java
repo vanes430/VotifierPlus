@@ -31,6 +31,7 @@ public class StandaloneMain {
     private Map<String, Object> config;
     private VoteReceiver voteReceiver;
     private KeyPair keyPair;
+    private Map<String, Key> tokens = new HashMap<>();
     private long startTime;
 
     public static void main(String[] args) {
@@ -44,11 +45,12 @@ public class StandaloneMain {
         logger.info("Starting VotifierPlus Standalone...");
 
         loadConfig();
+        loadTokens();
         loadKeys();
         
         try {
-            String host = (String) config.getOrDefault("host", "0.0.0.0");
-            int port = (int) config.getOrDefault("port", 8192);
+            String host = (String) config.getOrDefault("Host", "0.0.0.0");
+            int port = (int) config.getOrDefault("Port", 8192);
 
             voteReceiver = new VoteReceiver(host, port) {
 
@@ -69,7 +71,7 @@ public class StandaloneMain {
 
                 @Override
                 public boolean isUseTokens() {
-                     return false;
+                     return (Boolean) config.getOrDefault("TokenSupport", false);
                 }
 
                 @Override
@@ -79,33 +81,33 @@ public class StandaloneMain {
 
                 @Override
                 public Map<String, Key> getTokens() {
-                    return new HashMap<>();
+                    return tokens;
                 }
 
                 @Override
                 public Set<String> getServers() {
-                    Map<String, Object> forwarding = (Map<String, Object>) config.get("forwarding");
+                    Map<String, Object> forwarding = (Map<String, Object>) config.get("Forwarding");
                     if (forwarding == null) return Set.of();
                     return forwarding.keySet();
                 }
 
                 @Override
                 public ForwardServer getServerData(String s) {
-                    Map<String, Object> forwarding = (Map<String, Object>) config.get("forwarding");
+                    Map<String, Object> forwarding = (Map<String, Object>) config.get("Forwarding");
                     if (forwarding == null) return null;
                     Map<String, Object> serverConfig = (Map<String, Object>) forwarding.get(s);
                     if (serverConfig == null) return null;
 
-                    String address = (String) serverConfig.get("address"); // host:port
+                    String address = (String) serverConfig.getOrDefault("Address", "127.0.0.1:8192"); // host:port
                     String[] split = address.split(":");
                     String host = split[0];
                     int port = Integer.parseInt(split[1]);
                     
-                    String method = (String) serverConfig.getOrDefault("method", "pluginMessage"); // not used here really
-                    String keyStr = (String) serverConfig.getOrDefault("key", "");
-                    String tokenStr = (String) serverConfig.getOrDefault("token", "");
-                    boolean enabled = (Boolean) serverConfig.getOrDefault("enabled", true);
-                    boolean useToken = (Boolean) serverConfig.getOrDefault("usetoken", false);
+                    String method = (String) serverConfig.getOrDefault("Method", "pluginMessage"); // not used here really
+                    String keyStr = (String) serverConfig.getOrDefault("Key", "");
+                    String tokenStr = (String) serverConfig.getOrDefault("Token", "");
+                    boolean enabled = (Boolean) serverConfig.getOrDefault("Enabled", true);
+                    boolean useToken = (Boolean) serverConfig.getOrDefault("UseToken", false);
                     
                     Key tokenKey = null;
                     if (tokenStr != null && !tokenStr.isEmpty()) {
@@ -122,14 +124,14 @@ public class StandaloneMain {
 
                 @Override
                 public void debug(String msg) {
-                    if (Boolean.TRUE.equals(config.get("debug"))) {
+                    if (Boolean.TRUE.equals(config.get("Debug"))) {
                         logger.info("[DEBUG] " + msg);
                     }
                 }
 
                 @Override
                 public void debug(Exception e) {
-                    if (Boolean.TRUE.equals(config.get("debug"))) {
+                    if (Boolean.TRUE.equals(config.get("Debug"))) {
                         e.printStackTrace();
                     }
                 }
@@ -215,18 +217,58 @@ public class StandaloneMain {
         }
     }
 
+    private void loadTokens() {
+        tokens.clear();
+        Map<String, String> tokensConfig = (Map<String, String>) config.get("Tokens");
+        if (tokensConfig == null) {
+            tokensConfig = new HashMap<>();
+            tokensConfig.put("default", TokenUtil.newToken());
+            config.put("Tokens", tokensConfig);
+            saveConfig();
+        }
+        for (Map.Entry<String, String> entry : tokensConfig.entrySet()) {
+            tokens.put(entry.getKey(), TokenUtil.createKeyFrom(entry.getValue()));
+        }
+    }
+
+    private void saveConfig() {
+        File configFile = new File("config.yml");
+        try (FileWriter writer = new FileWriter(configFile)) {
+            new Yaml().dump(config, writer);
+        } catch (Exception e) {
+            e.printStackTrace();
+        }
+    }
+
     private void createDefaultConfig(File file) {
         try (FileWriter writer = new FileWriter(file)) {
-            writer.write("host: 0.0.0.0\n");
-            writer.write("port: 8192\n");
-            writer.write("debug: false\n");
-            writer.write("forwarding:\n");
-            writer.write("  # lobby:\n");
-            writer.write("  #   address: 127.0.0.1:8193\n");
-            writer.write("  #   # key: PUBLIC_KEY_HERE (Optional if using tokens)\n");
-            writer.write("  #   token: TOKEN_HERE\n");
-            writer.write("  #   usetoken: false\n");
-            writer.write("  #   enabled: true\n");
+            writer.write("# +-------------------------------------------------------------------------+\n");
+            writer.write("# |                  VotifierPlus Standalone Configuration                  |\n");
+            writer.write("# +-------------------------------------------------------------------------+\n\n");
+            writer.write("# The IP address to listen on. 0.0.0.0 listens on all interfaces.\n");
+            writer.write("Host: 0.0.0.0\n\n");
+            writer.write("# The port to listen on. Default is 8192.\n");
+            writer.write("Port: 8192\n\n");
+            writer.write("# Enable debug logging for troubleshooting.\n");
+            writer.write("Debug: false\n\n");
+            writer.write("# Experimental: Enable V2 Token support.\n");
+            writer.write("TokenSupport: false\n\n");
+            writer.write("# Tokens for V2 authentication.\n");
+            writer.write("Tokens:\n");
+            writer.write("  default: '" + TokenUtil.newToken() + "'\n\n");
+            writer.write("# Vote Forwarding: Send votes received by this application to other servers.\n");
+            writer.write("Forwarding:\n");
+            writer.write("  lobby:\n");
+            writer.write("    # Address of the target server (host:port).\n");
+            writer.write("    Address: 127.0.0.1:8193\n");
+            writer.write("    # RSA Public Key of the target server.\n");
+            writer.write("    Key: ''\n");
+            writer.write("    # Token for V2 authentication (if UseToken is true).\n");
+            writer.write("    Token: ''\n");
+            writer.write("    # Use V2 Token authentication instead of RSA keys.\n");
+            writer.write("    UseToken: false\n");
+            writer.write("    # Whether forwarding to this server is enabled.\n");
+            writer.write("    Enabled: false\n");
         } catch (Exception e) {
             e.printStackTrace();
         }

@@ -44,13 +44,20 @@ The configuration is automatically generated with detailed comments. Key setting
 
 ```yaml
 # IP to listen on. 0.0.0.0 listens on all interfaces.
-host: 0.0.0.0
+Host: 0.0.0.0
 
 # Port to listen on (default 8192). Open this in your firewall.
-port: 8192
+Port: 8192
 
 # Logging: NONE, INFO (basic), EXTRA (detailed packets).
 DebugLevel: NONE
+
+# Experimental: Enable V2 Token support.
+TokenSupport: false
+
+# Tokens for V2 authentication.
+Tokens:
+  default: 'YOUR_GENERATED_TOKEN'
 
 # Seconds to keep votes for offline players before auto-clearing.
 AutoClearDelay: 7200
@@ -84,22 +91,27 @@ Forwarding:
 # |                    VotifierPlus Proxy Configuration                     |
 # +-------------------------------------------------------------------------+
 
-host: 0.0.0.0
-port: 8192
-debug: false
+Host: 0.0.0.0
+Port: 8192
+Debug: false
+TokenSupport: false
+
+# Tokens for V2 authentication.
+Tokens:
+  default: 'YOUR_GENERATED_TOKEN'
 
 # Vote Forwarding: Send votes received by the proxy to your game servers.
-forwarding:
+Forwarding:
   survival:
-    address: 127.0.0.1:8193
-    enabled: true
+    Address: 127.0.0.1:8193
+    Enabled: true
     # --- RSA Method ---
     # Put the public.key of the target (survival) server here.
-    key: 'RSA_PUBLIC_KEY'
+    Key: 'RSA_PUBLIC_KEY'
     # --- Token Method (V2) ---
-    # Set usetoken to true and provide the token from the target server.
-    token: 'TOKEN_HERE'
-    usetoken: false
+    # Set UseToken to true and provide the token from the target server.
+    Token: 'TOKEN_HERE'
+    UseToken: false
 ```
 
 ---
@@ -119,17 +131,22 @@ Use this if you want to run VotifierPlus as a separate process without any Minec
 # |                  VotifierPlus Standalone Configuration                  |
 # +-------------------------------------------------------------------------+
 
-host: 0.0.0.0
-port: 8192
-debug: false
+Host: 0.0.0.0
+Port: 8192
+Debug: false
+TokenSupport: false
 
-forwarding:
+# Tokens for V2 authentication.
+Tokens:
+  default: 'YOUR_GENERATED_TOKEN'
+
+Forwarding:
   lobby:
-    address: 127.0.0.1:8193
-    enabled: true
-    key: 'RSA_PUBLIC_KEY'
-    token: 'TOKEN_HERE'
-    usetoken: false
+    Address: 127.0.0.1:8193
+    Enabled: true
+    Key: 'RSA_PUBLIC_KEY'
+    Token: 'TOKEN_HERE'
+    UseToken: false
 ```
 
 ---
