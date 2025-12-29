@@ -1,0 +1,11 @@
+{
+  "id": "votifierplus",
+  "name": "${plugin.name}",
+  "version": "${project.version}",
+  "description": "${project.description}",
+  "authors": [
+    "BenCodez"
+  ],
+  "main": "com.vexsoftware.votifier.VotifierPlusVelocity",
+  "dependencies": []
+}
