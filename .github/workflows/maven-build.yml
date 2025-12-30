@@ -16,9 +16,14 @@ jobs:
           java-version: '21'
           distribution: 'temurin'
           cache: maven
+
+      - name: Read properties
+        id: props
+        run: |
+          echo "VERSION=$(grep 'project.version' build.properties | cut -d'=' -f2)" >> $GITHUB_ENV
           
       - name: Build with Maven
-        run: mvn -B clean install
+        run: mvn -B clean install -Drevision=${{ env.VERSION }}
         
       - name: Upload Maven Artifacts
         uses: actions/upload-artifact@v4

@@ -15,6 +15,11 @@ import (
 )
 
 var (
+	// Build-time variables
+	Version = "dev"
+	Author  = "vanes430"
+	Title   = "VotifierPlus-Golang"
+
 	banner = []string{
 		"                                                         ",
 		"██╗   ██╗ ██████╗ ████████╗██╗███████╗██╗███████╗██████╗ ",
@@ -24,9 +29,9 @@ var (
 		" ╚████╔╝ ╚██████╔╝   ██║   ██║██║     ██║███████╗██║  ██║",
 		"  ╚═══╝   ╚═════╝    ╚═╝   ╚═╝╚═╝     ╚═╝╚══════╝╚═╝  ╚═╝",
 		"                                                         ",
-		"   > Fork maintained by vanes430",
+		"   > Fork maintained by " + Author,
 		"   > GitHub: https://github.com/vanes430/VotifierPlus",
-		"   > VotifierPlus-Golang v1.0.0",
+		"   > " + Title + " v" + Version,
 		"                                                         ",
 	}
 	startTime  time.Time

@@ -17,6 +17,13 @@ jobs:
     steps:
       - uses: actions/checkout@v4
       
+      - name: Read properties
+        id: props
+        run: |
+          echo "VERSION=$(grep 'project.version' build.properties | cut -d'=' -f2)" >> $GITHUB_ENV
+          echo "AUTHOR=$(grep 'project.author' build.properties | cut -d'=' -f2)" >> $GITHUB_ENV
+          echo "TITLE=$(grep 'project.title' build.properties | cut -d'=' -f2)" >> $GITHUB_ENV
+      
       - name: Set up Go
         uses: actions/setup-go@v5
         with:
@@ -31,19 +38,19 @@ jobs:
           CGO_ENABLED: 0
         run: |
           go mod tidy
-          go build -o votifier-standalone-${{ matrix.arch }} main.go
+          go build -ldflags "-X main.Version=${{ env.VERSION }} -X main.Author=${{ env.AUTHOR }} -X main.Title=${{ env.TITLE }}" -o VotifierPlus-Standalone-${{ env.VERSION }}-${{ matrix.arch }} main.go
           
       - name: Package (${{ matrix.arch }})
         working-directory: standalone-golang
         run: |
-          mkdir -p dist/votifier-standalone
-          cp votifier-standalone-${{ matrix.arch }} dist/votifier-standalone/votifier-standalone
+          mkdir -p dist/VotifierPlus-Standalone-${{ env.VERSION }}-${{ matrix.arch }}
+          cp VotifierPlus-Standalone-${{ env.VERSION }}-${{ matrix.arch }} dist/VotifierPlus-Standalone-${{ env.VERSION }}-${{ matrix.arch }}/VotifierPlus-Standalone-${{ env.VERSION }}-${{ matrix.arch }}
           cd dist
-          tar -czvf ../votifier-standalone-${{ matrix.arch }}.tar.gz votifier-standalone
+          tar -czvf ../VotifierPlus-Standalone-${{ env.VERSION }}-${{ matrix.arch }}.tar.gz VotifierPlus-Standalone-${{ env.VERSION }}-${{ matrix.arch }}
           
       - name: Upload Go Artifacts
         uses: actions/upload-artifact@v4
         with:
           name: go-artifacts-${{ matrix.arch }}
-          path: standalone-golang/votifier-standalone-${{ matrix.arch }}.tar.gz
+          path: standalone-golang/VotifierPlus-Standalone-${{ env.VERSION }}-${{ matrix.arch }}.tar.gz
           retention-days: 1
