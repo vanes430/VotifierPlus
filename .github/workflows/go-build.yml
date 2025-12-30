@@ -1,0 +1,50 @@
+name: Go Build
+
+on:
+  workflow_call:
+
+jobs:
+  build:
+    name: Build Golang
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        include:
+          - arch: amd64
+            goarch: amd64
+          - arch: arm64
+            goarch: arm64
+    steps:
+      - uses: actions/checkout@v4
+      
+      - name: Set up Go
+        uses: actions/setup-go@v5
+        with:
+          go-version: '1.25.5'
+          cache-dependency-path: standalone-golang/go.sum
+
+      - name: Build Standalone (${{ matrix.arch }})
+        working-directory: standalone-golang
+        env:
+          GOOS: linux
+          GOARCH: ${{ matrix.goarch }}
+          CGO_ENABLED: 0
+        run: |
+          go mod tidy
+          go build -o votifier-standalone-${{ matrix.arch }} main.go
+          
+      - name: Package (${{ matrix.arch }})
+        working-directory: standalone-golang
+        run: |
+          mkdir -p dist/votifier-standalone
+          cp votifier-standalone-${{ matrix.arch }} dist/votifier-standalone/votifier-standalone
+          cp config.yml dist/votifier-standalone/
+          cd dist
+          tar -czvf ../votifier-standalone-${{ matrix.arch }}.tar.gz votifier-standalone
+          
+      - name: Upload Go Artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: go-artifacts-${{ matrix.arch }}
+          path: standalone-golang/votifier-standalone-${{ matrix.arch }}.tar.gz
+          retention-days: 1

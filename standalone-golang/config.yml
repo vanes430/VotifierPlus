@@ -1,0 +1,17 @@
+# VotifierPlus Golang Configuration
+# Host: 0.0.0.0 to listen on all interfaces
+# Port: Default Votifier port is 8192
+
+Host: 0.0.0.0
+Port: 8192
+Debug: true
+TokenSupport: true
+Tokens:
+    default: 9a38b27402ee65c7
+Forwarding:
+    example_server:
+        Address: 127.0.0.1:8193
+        Key: ""
+        Token: ""
+        UseToken: false
+        Enabled: false

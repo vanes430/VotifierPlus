@@ -1,0 +1,67 @@
+name: Release Pipeline
+
+on:
+  push:
+    branches: [ "master" ]
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  maven-build:
+    uses: ./.github/workflows/maven-build.yml
+
+  go-build:
+    uses: ./.github/workflows/go-build.yml
+
+  release:
+    name: Post Release
+    needs: [maven-build, go-build]
+    runs-on: ubuntu-latest
+    if: github.ref == 'refs/heads/master'
+    steps:
+      - uses: actions/checkout@v4
+      
+      - name: Download Maven Artifacts
+        uses: actions/download-artifact@v4
+        with:
+          name: maven-artifacts
+          path: artifacts/java
+          
+      - name: Download Go AMD64 Artifacts
+        uses: actions/download-artifact@v4
+        with:
+          name: go-artifacts-amd64
+          path: artifacts/go
+          
+      - name: Download Go ARM64 Artifacts
+        uses: actions/download-artifact@v4
+        with:
+          name: go-artifacts-arm64
+          path: artifacts/go
+          
+      - name: Delete old release and tag
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          gh release delete latest --cleanup-tag -y || true
+          
+      - name: Update Latest Release
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: latest
+          name: Latest Release
+          target_commitish: ${{ github.sha }}
+          body: |
+            Automated build from the latest commit.
+            
+            **Build Time:** ${{ github.event.head_commit.timestamp }}
+            **Commit:** ${{ github.sha }}
+          files: |
+            artifacts/java/*.jar
+            artifacts/go/*.tar.gz
+          draft: false
+          prerelease: false
+          make_latest: true
+          generate_release_notes: true

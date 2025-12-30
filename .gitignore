@@ -19,3 +19,10 @@ dependency-reduced-pom.xml
 rsa/
 **/rsa/
 *.log
+
+# Golang
+standalone-golang/votifier-standalone
+standalone-golang/dist/
+*.exe
+*.test
+
