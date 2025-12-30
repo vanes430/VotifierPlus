@@ -29,8 +29,8 @@ import java.util.HashMap;
 import java.util.Map;
 import java.util.Set;
 
-@Plugin(id = "votifierplus", name = "VotifierPlus", version = "1.4.3",
-        description = "A Votifier proxy listener for Velocity", authors = {"BenCodez"})
+@Plugin(id = "votifierplus", name = "VotifierPlus", version = "2.0.0-SNAPSHOT",
+        description = "A Votifier proxy listener for Velocity", authors = {"vanes430"})
 public class VotifierPlusVelocity {
 
     private final ProxyServer server;
@@ -54,7 +54,7 @@ public class VotifierPlusVelocity {
         logger.info("Initializing VotifierPlus for Velocity...");
         loadConfig();
         loadTokens();
-        loadKeys();
+        checkAndGenerateKeys();
         startVoteReceiver();
         
         server.getCommandManager().register("vevotifierplus", new VelocityReloadCommand(this));
@@ -141,25 +141,34 @@ public class VotifierPlusVelocity {
         }
     }
 
-    private void loadKeys() {
+    private void checkAndGenerateKeys() {
         File rsaDir = new File(dataDirectory.toFile(), "rsa");
         try {
             if (!rsaDir.exists()) {
                 rsaDir.mkdir();
                 keyPair = RSAKeygen.generate(2048);
                 RSAIO.save(rsaDir, keyPair);
-            }
-            else {
-                keyPair = RSAIO.load(rsaDir);
+                logger.info("RSA keys generated.");
+            } else {
+                File publicFile = new File(rsaDir, "public.key");
+                File privateFile = new File(rsaDir, "private.key");
+                if (!publicFile.exists() || !privateFile.exists()) {
+                    keyPair = RSAKeygen.generate(2048);
+                    RSAIO.save(rsaDir, keyPair);
+                    logger.info("RSA keys missing, regenerated.");
+                } else {
+                    keyPair = RSAIO.load(rsaDir);
+                }
             }
         } catch (Exception e) {
-            logger.error("Error loading RSA keys", e);
+            logger.error("Error reading/generating RSA keys", e);
         }
     }
 
     private void startVoteReceiver() {
         if (voteReceiver != null) {
             voteReceiver.shutdown();
+            voteReceiver = null;
         }
         
         String host = (String) config.getOrDefault("Host", "0.0.0.0");
@@ -192,22 +201,17 @@ public class VotifierPlusVelocity {
                 @Override public void callEvent(Vote e) { logger.info("Vote received for " + e.getUsername()); }
             };
             voteReceiver.start();
-            logger.info("VotifierPlus started on " + host + ":" + port);
+            logger.info("VotifierPlus listening on " + host + ":" + port);
         } catch (Exception e) {
             logger.error("Failed to start VoteReceiver", e);
         }
     }
 
     public void reload() {
-        int oldPort = (int) config.getOrDefault("Port", 8192);
         loadConfig();
         loadTokens();
-        loadKeys();
+        checkAndGenerateKeys();
         startVoteReceiver();
-        
-        int newPort = (int) config.getOrDefault("Port", 8192);
-        if (oldPort != newPort) {
-            logger.warn("Port changed during reload. A proxy restart is required for the new port to take effect!");
-        }
+        logger.info("VotifierPlus reloaded. Listening on port " + config.getOrDefault("Port", 8192));
     }
 }
