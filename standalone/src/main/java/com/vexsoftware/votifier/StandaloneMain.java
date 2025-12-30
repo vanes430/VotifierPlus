@@ -6,9 +6,7 @@ import java.io.FileWriter;
 import java.io.InputStream;
 import java.security.Key;
 import java.security.KeyPair;
-import java.util.ArrayList;
 import java.util.HashMap;
-import java.util.List;
 import java.util.Map;
 import java.util.Set;
 import java.util.logging.Logger;
@@ -46,8 +44,19 @@ public class StandaloneMain {
 
         loadConfig();
         loadTokens();
-        loadKeys();
+        checkAndGenerateKeys();
         
+        startVoteReceiver();
+        
+        handleCommands();
+    }
+
+    private void startVoteReceiver() {
+        if (voteReceiver != null) {
+            voteReceiver.shutdown();
+            voteReceiver = null;
+        }
+
         try {
             String host = (String) config.getOrDefault("Host", "0.0.0.0");
             int port = (int) config.getOrDefault("Port", 8192);
@@ -76,7 +85,7 @@ public class StandaloneMain {
 
                 @Override
                 public String getVersion() {
-                    return "Standalone-1.0";
+                    return "Standalone-1.4.3";
                 }
 
                 @Override
@@ -103,7 +112,6 @@ public class StandaloneMain {
                     String host = split[0];
                     int port = Integer.parseInt(split[1]);
                     
-                    String method = (String) serverConfig.getOrDefault("Method", "pluginMessage"); // not used here really
                     String keyStr = (String) serverConfig.getOrDefault("Key", "");
                     String tokenStr = (String) serverConfig.getOrDefault("Token", "");
                     boolean enabled = (Boolean) serverConfig.getOrDefault("Enabled", true);
@@ -142,13 +150,10 @@ public class StandaloneMain {
                 }
             };
             voteReceiver.start();
-            logger.info("VotifierPlus Standalone started on " + host + ":" + port);
-            
-            handleCommands();
+            logger.info("VotifierPlus listening on " + host + ":" + port);
 
         } catch (Exception e) {
-            e.printStackTrace();
-            System.exit(1);
+            logger.severe("Failed to start VoteReceiver: " + e.getMessage());
         }
     }
 
@@ -175,6 +180,8 @@ public class StandaloneMain {
                 logger.info("Stopping VotifierPlus Standalone...");
                 if (voteReceiver != null) voteReceiver.shutdown();
                 System.exit(0);
+            } else if (input.equals("reload") || input.equals("restart")) {
+                reload();
             } else if (input.equals("uptime")) {
                 long diff = System.currentTimeMillis() - startTime;
                 long seconds = (diff / 1000) % 60;
@@ -200,8 +207,40 @@ public class StandaloneMain {
                 } catch (Exception e) {}
                 logger.info("------------------");
             } else {
-                logger.info("Available commands: uptime, status, stop");
+                logger.info("Available commands: reload, restart, uptime, status, stop");
             }
+        }
+    }
+
+    public void reload() {
+        loadConfig();
+        loadTokens();
+        checkAndGenerateKeys();
+        startVoteReceiver();
+        logger.info("VotifierPlus reloaded. Listening on port " + config.getOrDefault("Port", 8192));
+    }
+
+    private void checkAndGenerateKeys() {
+        File rsaDir = new File("rsa");
+        try {
+            if (!rsaDir.exists()) {
+                rsaDir.mkdir();
+                keyPair = RSAKeygen.generate(2048);
+                RSAIO.save(rsaDir, keyPair);
+                logger.info("RSA keys generated.");
+            } else {
+                File publicFile = new File(rsaDir, "public.key");
+                File privateFile = new File(rsaDir, "private.key");
+                if (!publicFile.exists() || !privateFile.exists()) {
+                    keyPair = RSAKeygen.generate(2048);
+                    RSAIO.save(rsaDir, keyPair);
+                    logger.info("RSA keys missing, regenerated.");
+                } else {
+                    keyPair = RSAIO.load(rsaDir);
+                }
+            }
+        } catch (Exception e) {
+            logger.severe("Error reading/generating RSA keys: " + e.getMessage());
         }
     }
 
@@ -213,7 +252,7 @@ public class StandaloneMain {
         try (InputStream in = new FileInputStream(configFile)) {
             config = new Yaml().load(in);
         } catch (Exception e) {
-            e.printStackTrace();
+            logger.severe("Could not load config.yml: " + e.getMessage());
         }
     }
 
@@ -236,7 +275,7 @@ public class StandaloneMain {
         try (FileWriter writer = new FileWriter(configFile)) {
             new Yaml().dump(config, writer);
         } catch (Exception e) {
-            e.printStackTrace();
+            logger.severe("Could not save config.yml: " + e.getMessage());
         }
     }
 
@@ -270,22 +309,7 @@ public class StandaloneMain {
             writer.write("    # Whether forwarding to this server is enabled.\n");
             writer.write("    Enabled: false\n");
         } catch (Exception e) {
-            e.printStackTrace();
-        }
-    }
-
-    private void loadKeys() {
-        File rsaDir = new File("rsa");
-        try {
-            if (!rsaDir.exists()) {
-                rsaDir.mkdir();
-                keyPair = RSAKeygen.generate(2048);
-                RSAIO.save(rsaDir, keyPair);
-            } else {
-                keyPair = RSAIO.load(rsaDir);
-            }
-        } catch (Exception e) {
-            e.printStackTrace();
+            logger.severe("Could not create default config: " + e.getMessage());
         }
     }
 }
