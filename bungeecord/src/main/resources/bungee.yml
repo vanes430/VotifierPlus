@@ -1,5 +1,5 @@
 name: ${plugin.name}
 version: ${project.version}
 main: com.vexsoftware.votifier.VotifierPlusBungee
-author: BenCodez
+author: vanes430
 description: ${project.description}
