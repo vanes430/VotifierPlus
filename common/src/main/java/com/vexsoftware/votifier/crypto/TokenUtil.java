@@ -11,7 +11,16 @@ public class TokenUtil {
 	private static final SecureRandom RANDOM = new SecureRandom();
 
 	public static String newToken() {
-		return new BigInteger(130, RANDOM).toString(32).toUpperCase();
+		// Generate 8 bytes (64 bits) of cryptographically secure random data
+		byte[] bytes = new byte[8];
+		RANDOM.nextBytes(bytes);
+		
+		// Convert to 16-character lowercase hexadecimal string
+		StringBuilder sb = new StringBuilder();
+		for (byte b : bytes) {
+			sb.append(String.format("%02x", b));
+		}
+		return sb.toString();
 	}
 	
 	 public static Key createKeyFrom(String token) {
