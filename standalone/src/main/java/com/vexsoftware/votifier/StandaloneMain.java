@@ -15,6 +15,7 @@ import org.yaml.snakeyaml.Yaml;
 
 import com.vexsoftware.votifier.crypto.RSAIO;
 import com.vexsoftware.votifier.crypto.RSAKeygen;
+import com.vexsoftware.votifier.util.AsciiArt;
 import com.vexsoftware.votifier.crypto.TokenUtil;
 import com.vexsoftware.votifier.model.Vote;
 import com.vexsoftware.votifier.net.VoteReceiver;
@@ -38,6 +39,7 @@ public class StandaloneMain {
 
     public void start() {
         setupLogger();
+        AsciiArt.send(logger::info);
         instance = this;
         startTime = System.currentTimeMillis();
         logger.info("Starting VotifierPlus Standalone...");
@@ -177,6 +179,7 @@ public class StandaloneMain {
         while (true) {
             String input = scanner.nextLine().toLowerCase();
             if (input.equals("stop")) {
+                AsciiArt.send(logger::info);
                 logger.info("Stopping VotifierPlus Standalone...");
                 if (voteReceiver != null) voteReceiver.shutdown();
                 System.exit(0);

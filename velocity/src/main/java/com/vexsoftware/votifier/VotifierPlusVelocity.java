@@ -8,6 +8,7 @@ import com.velocitypowered.api.plugin.Plugin;
 import com.velocitypowered.api.plugin.annotation.DataDirectory;
 import com.velocitypowered.api.proxy.ProxyServer;
 import com.vexsoftware.votifier.commands.VelocityReloadCommand;
+import com.vexsoftware.votifier.util.AsciiArt;
 import com.vexsoftware.votifier.crypto.RSAIO;
 import com.vexsoftware.votifier.crypto.RSAKeygen;
 import com.vexsoftware.votifier.crypto.TokenUtil;
@@ -51,6 +52,7 @@ public class VotifierPlusVelocity {
 
     @Subscribe
     public void onProxyInitialization(ProxyInitializeEvent event) {
+        AsciiArt.send(logger::info);
         logger.info("Initializing VotifierPlus for Velocity...");
         loadConfig();
         loadTokens();
@@ -62,6 +64,7 @@ public class VotifierPlusVelocity {
 
     @Subscribe
     public void onProxyShutdown(ProxyShutdownEvent event) {
+        AsciiArt.send(logger::info);
         if (voteReceiver != null) {
             voteReceiver.shutdown();
         }

@@ -1,0 +1,33 @@
+# +-------------------------------------------------------------------------+
+# |                  VotifierPlus Standalone Configuration                  |
+# +-------------------------------------------------------------------------+
+
+# The IP address to listen on. 0.0.0.0 listens on all interfaces.
+Host: 0.0.0.0
+
+# The port to listen on. Default is 8192.
+Port: 8192
+
+# Enable debug logging for troubleshooting.
+Debug: false
+
+# Experimental: Enable V2 Token support (NuVotifier compatible).
+TokenSupport: false
+
+# Tokens for V2 authentication.
+Tokens:
+  default: '9ade5ea063766f83'
+
+# Vote Forwarding: Send votes received by this application to other servers.
+Forwarding:
+  lobby:
+    # Address of the target server (host:port).
+    Address: 127.0.0.1:8193
+    # RSA Public Key of the target server.
+    Key: ''
+    # Token for V2 authentication (if UseToken is true).
+    Token: ''
+    # Use V2 Token authentication instead of RSA keys.
+    UseToken: false
+    # Whether forwarding to this server is enabled.
+    Enabled: false

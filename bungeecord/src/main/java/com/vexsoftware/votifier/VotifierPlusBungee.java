@@ -1,6 +1,7 @@
 package com.vexsoftware.votifier;
 
 import com.vexsoftware.votifier.commands.BungeeReloadCommand;
+import com.vexsoftware.votifier.util.AsciiArt;
 import com.vexsoftware.votifier.crypto.RSAIO;
 import com.vexsoftware.votifier.crypto.RSAKeygen;
 import com.vexsoftware.votifier.crypto.TokenUtil;
@@ -25,6 +26,7 @@ public class VotifierPlusBungee extends Plugin {
 
     @Override
     public void onEnable() {
+        AsciiArt.send(getLogger()::info);
         getLogger().info("Initializing VotifierPlus for BungeeCord...");
         loadConfig();
         loadTokens();
@@ -36,6 +38,7 @@ public class VotifierPlusBungee extends Plugin {
 
     @Override
     public void onDisable() {
+        AsciiArt.send(getLogger()::info);
         if (voteReceiver != null) {
             voteReceiver.shutdown();
         }

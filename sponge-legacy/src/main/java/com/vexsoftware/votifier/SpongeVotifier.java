@@ -4,6 +4,7 @@ import com.google.inject.Inject;
 import com.vexsoftware.votifier.crypto.RSAIO;
 import com.vexsoftware.votifier.crypto.RSAKeygen;
 import com.vexsoftware.votifier.crypto.TokenUtil;
+import com.vexsoftware.votifier.util.AsciiArt;
 import com.vexsoftware.votifier.model.Vote;
 import com.vexsoftware.votifier.net.VoteReceiver;
 import org.slf4j.Logger;
@@ -53,6 +54,7 @@ public class SpongeVotifier {
 
     @Listener
     public void onInit(GameInitializationEvent event) {
+        AsciiArt.send(logger::info);
         logger.info("Initializing VotifierPlus for Sponge...");
 
         File configDirFile = configDir.toFile();
@@ -195,6 +197,7 @@ public class SpongeVotifier {
 
     @Listener
     public void onStop(GameStoppingEvent event) {
+        AsciiArt.send(logger::info);
         if (voteReceiver != null) {
             voteReceiver.shutdown();
         }

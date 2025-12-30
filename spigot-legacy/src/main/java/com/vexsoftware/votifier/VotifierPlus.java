@@ -40,6 +40,7 @@ import org.bukkit.plugin.java.JavaPlugin;
 
 import com.vexsoftware.votifier.commands.CommandVotifierPlus;
 import com.vexsoftware.votifier.config.Config;
+import com.vexsoftware.votifier.util.AsciiArt;
 import com.vexsoftware.votifier.crypto.RSAIO;
 import com.vexsoftware.votifier.crypto.RSAKeygen;
 import com.vexsoftware.votifier.crypto.TokenUtil;
@@ -127,6 +128,7 @@ public class VotifierPlus extends JavaPlugin implements Listener {
 
 	@Override
 	public void onEnable() {
+		AsciiArt.send(getLogger()::info);
 		instance = this;
 		foliaLib = new FoliaLib(this);
 
@@ -268,6 +270,7 @@ public class VotifierPlus extends JavaPlugin implements Listener {
 
 	@Override
 	public void onDisable() {
+		AsciiArt.send(getLogger()::info);
 		// Interrupt the vote receiver.
 		if (voteReceiver != null) {
 			voteReceiver.shutdown();
