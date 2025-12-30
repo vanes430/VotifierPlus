@@ -38,7 +38,6 @@ jobs:
         run: |
           mkdir -p dist/votifier-standalone
           cp votifier-standalone-${{ matrix.arch }} dist/votifier-standalone/votifier-standalone
-          cp config.yml dist/votifier-standalone/
           cd dist
           tar -czvf ../votifier-standalone-${{ matrix.arch }}.tar.gz votifier-standalone
           

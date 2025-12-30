@@ -23,6 +23,6 @@ rsa/
 # Golang
 standalone-golang/votifier-standalone
 standalone-golang/dist/
+standalone-golang/config.yml
 *.exe
 *.test
-
