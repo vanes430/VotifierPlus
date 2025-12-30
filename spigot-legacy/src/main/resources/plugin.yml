@@ -1,0 +1,11 @@
+name: ${plugin.name}
+main: com.vexsoftware.votifier.VotifierPlus
+version: "${project.version}"
+description: ${project.description}
+author: vanes430
+provides: 
+- Votifier
+folia-supported: true
+commands:
+  votifierplus:
+    description: main command
