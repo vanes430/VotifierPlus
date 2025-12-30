@@ -6,7 +6,7 @@
     <parent>
         <groupId>com.bencodez</groupId>
         <artifactId>VotifierPlus-Parent</artifactId>
-        <version>1.4.3</version>
+        <version>2.0.0-SNAPSHOT</version>
     </parent>
 
     <artifactId>VotifierPlus-Standalone</artifactId>
