@@ -1,0 +1,31 @@
+{
+  "version": "1",
+  "plugins": [
+    {
+      "id": "votifierplus",
+      "name": "VotifierPlus",
+      "version": "2.0.0-SNAPSHOT",
+      "entry-point": "com.vexsoftware.votifier.SpongeVotifier",
+      "description": "A plugin that gets notified when votes are made for the server on toplists.",
+      "links": {
+        "homepage": "https://github.com/vanes430/VotifierPlus",
+        "source": "https://github.com/vanes430/VotifierPlus",
+        "issues": "https://github.com/vanes430/VotifierPlus/issues"
+      },
+      "contributors": [
+        {
+          "name": "vanes430",
+          "description": "Author"
+        }
+      ],
+      "dependencies": [
+        {
+          "id": "spongeapi",
+          "version": "8.0.0",
+          "load-order": "after",
+          "optional": false
+        }
+      ]
+    }
+  ]
+}
