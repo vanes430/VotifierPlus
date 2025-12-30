@@ -28,7 +28,7 @@ public class VotifierPlusBungee extends Plugin {
         getLogger().info("Initializing VotifierPlus for BungeeCord...");
         loadConfig();
         loadTokens();
-        loadKeys();
+        checkAndGenerateKeys();
         startVoteReceiver();
         
         getProxy().getPluginManager().registerCommand(this, new BungeeReloadCommand(this));
@@ -113,24 +113,34 @@ public class VotifierPlusBungee extends Plugin {
         }
     }
 
-    private void loadKeys() {
+    private void checkAndGenerateKeys() {
         File rsaDir = new File(getDataFolder(), "rsa");
         try {
             if (!rsaDir.exists()) {
                 rsaDir.mkdir();
                 keyPair = RSAKeygen.generate(2048);
                 RSAIO.save(rsaDir, keyPair);
+                getLogger().info("RSA keys generated.");
             } else {
-                keyPair = RSAIO.load(rsaDir);
+                File publicFile = new File(rsaDir, "public.key");
+                File privateFile = new File(rsaDir, "private.key");
+                if (!publicFile.exists() || !privateFile.exists()) {
+                    keyPair = RSAKeygen.generate(2048);
+                    RSAIO.save(rsaDir, keyPair);
+                    getLogger().info("RSA keys missing, regenerated.");
+                } else {
+                    keyPair = RSAIO.load(rsaDir);
+                }
             }
         } catch (Exception e) {
-            getLogger().severe("Error loading RSA keys: " + e.getMessage());
+            getLogger().severe("Error reading/generating RSA keys: " + e.getMessage());
         }
     }
 
     private void startVoteReceiver() {
         if (voteReceiver != null) {
             voteReceiver.shutdown();
+            voteReceiver = null;
         }
         
         String host = (String) config.getOrDefault("Host", "0.0.0.0");
@@ -163,22 +173,17 @@ public class VotifierPlusBungee extends Plugin {
                 @Override public void callEvent(Vote e) { getLogger().info("Vote received for " + e.getUsername()); }
             };
             voteReceiver.start();
-            getLogger().info("VotifierPlus started on " + host + ":" + port);
+            getLogger().info("VotifierPlus listening on " + host + ":" + port);
         } catch (Exception e) {
             getLogger().severe("Failed to start VoteReceiver: " + e.getMessage());
         }
     }
 
     public void reload() {
-        int oldPort = (int) config.getOrDefault("Port", 8192);
         loadConfig();
         loadTokens();
-        loadKeys();
+        checkAndGenerateKeys();
         startVoteReceiver();
-        
-        int newPort = (int) config.getOrDefault("Port", 8192);
-        if (oldPort != newPort) {
-            getLogger().warning("Port changed during reload. A BungeeCord restart is required for the new port to take effect!");
-        }
+        getLogger().info("VotifierPlus reloaded. Listening on port " + config.getOrDefault("Port", 8192));
     }
 }
