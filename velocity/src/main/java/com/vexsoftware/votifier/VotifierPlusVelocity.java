@@ -121,6 +121,8 @@ public class VotifierPlusVelocity {
             writer.write("Port: 8192\n\n");
             writer.write("# Enable debug logging for troubleshooting.\n");
             writer.write("Debug: false\n\n");
+            writer.write("# Log failed vote attempts to 'failed-votes.log'.\n");
+            writer.write("LogFailedVotes: false\n\n");
             writer.write("# Experimental: Enable V2 Token support (NuVotifier compatible).\n");
             writer.write("TokenSupport: false\n\n");
             writer.write("# Tokens for V2 authentication.\n");
@@ -183,6 +185,7 @@ public class VotifierPlusVelocity {
                 @Override public void logSevere(String msg) { logger.error(msg); }
                 @Override public void log(String msg) { logger.info(msg); }
                 @Override public boolean isUseTokens() { return (Boolean) config.getOrDefault("TokenSupport", false); }
+                @Override public boolean isLogFailedVotes() { return (Boolean) config.getOrDefault("LogFailedVotes", false); }
                 @Override public String getVersion() { return "1.4.3-Velocity"; }
                 @Override public Map<String, Key> getTokens() { return tokens; }
                 @Override public Set<String> getServers() {

@@ -246,6 +246,11 @@ public class VotifierPlus extends JavaPlugin implements Listener {
 				public boolean isUseTokens() {
 					return configFile.isTokenSupport();
 				}
+
+				@Override
+				public boolean isLogFailedVotes() {
+					return configFile.isLogFailedVotes();
+				}
 			};
 			voteReceiver.start();
 
@@ -311,7 +316,18 @@ public class VotifierPlus extends JavaPlugin implements Listener {
 
 	@EventHandler
 	public void onJoin(PlayerJoinEvent event) {
-		String name = event.getPlayer().getName();
+		final String name = event.getPlayer().getName();
+		if (waitingList.containsKey(name)) {
+			int delay = configFile.getWaitingDelay();
+			if (delay <= 0) {
+				processWaitingVotes(name);
+			} else {
+				foliaLib.getImpl().runLater(() -> processWaitingVotes(name), delay, TimeUnit.SECONDS);
+			}
+		}
+	}
+
+	private void processWaitingVotes(String name) {
 		if (waitingList.containsKey(name)) {
 			ArrayList<Vote> votes = waitingList.get(name);
 			for (Vote vote : votes) {

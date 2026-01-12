@@ -33,6 +33,9 @@ import java.security.Key;
 import java.security.KeyPair;
 import java.util.*;
 
+import org.spongepowered.api.event.network.ClientConnectionEvent;
+import java.util.concurrent.TimeUnit;
+
 @Plugin(id = "votifierplus", name = "VotifierPlus", version = "2.0.0-SNAPSHOT", description = "A plugin that gets notified when votes are made for the server on toplists.", authors = {"vanes430"})
 public class SpongeVotifier {
 
@@ -51,6 +54,7 @@ public class SpongeVotifier {
     private VoteReceiver voteReceiver;
     private KeyPair keyPair;
     private Map<String, Key> tokens = new HashMap<>();
+    private final Map<String, List<Vote>> waitingList = new HashMap<>();
 
     @Listener
     public void onInit(GameInitializationEvent event) {
@@ -120,6 +124,11 @@ public class SpongeVotifier {
                 }
 
                 @Override
+                public boolean isLogFailedVotes() {
+                    return config.getNode("LogFailedVotes").getBoolean(false);
+                }
+
+                @Override
                 public String getVersion() {
                     return "Sponge-2.0.0-SNAPSHOT";
                 }
@@ -184,7 +193,12 @@ public class SpongeVotifier {
                 @Override
                 public void callEvent(Vote vote) {
                     Task.builder().execute(() -> {
-                         Sponge.getEventManager().post(new VotifierEvent(vote));
+                         if (Sponge.getServer().getPlayer(vote.getUsername()).isPresent()) {
+                             Sponge.getEventManager().post(new VotifierEvent(vote));
+                         } else {
+                             waitingList.computeIfAbsent(vote.getUsername(), k -> new ArrayList<>()).add(vote);
+                             debug("Player " + vote.getUsername() + " is not online, adding to waiting list");
+                         }
                     }).submit(SpongeVotifier.this);
                 }
             };
@@ -204,6 +218,34 @@ public class SpongeVotifier {
         logger.info("VotifierPlus disabled.");
     }
 
+    @Listener
+    public void onPlayerJoin(ClientConnectionEvent.Join event) {
+        String name = event.getTargetEntity().getName();
+        if (waitingList.containsKey(name)) {
+            int delay = config.getNode("WaitingDelay").getInt(5);
+            if (delay <= 0) {
+                processWaitingVotes(name);
+            } else {
+                Task.builder()
+                        .execute(() -> processWaitingVotes(name))
+                        .delay(delay, TimeUnit.SECONDS)
+                        .submit(this);
+            }
+        }
+    }
+
+    private void processWaitingVotes(String name) {
+        List<Vote> votes = waitingList.remove(name);
+        if (votes != null) {
+            for (Vote vote : votes) {
+                Sponge.getEventManager().post(new VotifierEvent(vote));
+            }
+            if (config.getNode("Debug").getBoolean(false)) {
+                logger.info("[DEBUG] Processed waiting votes for " + name);
+            }
+        }
+    }
+
     private void loadConfig() {
         try {
             if (!new File(configDir.toFile(), "votifierplus.conf").exists()) {
@@ -211,8 +253,10 @@ public class SpongeVotifier {
                 config.getNode("Host").setValue("0.0.0.0");
                 config.getNode("Port").setValue(8192);
                 config.getNode("Debug").setValue(false);
+                config.getNode("LogFailedVotes").setValue(false);
                 config.getNode("TokenSupport").setValue(false);
                 config.getNode("Tokens", "default").setValue(TokenUtil.newToken());
+                config.getNode("WaitingDelay").setValue(5);
                 
                 // Example forwarding
                 ConfigurationNode forwarding = config.getNode("Forwarding", "example");

@@ -33,23 +33,31 @@ import java.security.Key;
 import java.security.KeyPair;
 import java.util.*;
 
+import org.spongepowered.api.event.network.ServerSideConnectionEvent;
+import org.spongepowered.api.service.pagination.PaginationList;
+import org.spongepowered.plugin.PluginContainer;
+import java.util.concurrent.TimeUnit;
+
 @Plugin("votifierplus")
 public class SpongeVotifier {
 
     private final Logger logger;
     private final Path configDir;
     private final ConfigurationLoader<CommentedConfigurationNode> configLoader;
+    private final PluginContainer pluginContainer;
 
     private CommentedConfigurationNode config;
     private VoteReceiver voteReceiver;
     private KeyPair keyPair;
     private Map<String, Key> tokens = new HashMap<>();
+    private final Map<String, List<Vote>> waitingList = new HashMap<>();
 
     @Inject
-    public SpongeVotifier(Logger logger, @ConfigDir(sharedRoot = false) Path configDir, @DefaultConfig(sharedRoot = false) ConfigurationLoader<CommentedConfigurationNode> configLoader) {
+    public SpongeVotifier(Logger logger, @ConfigDir(sharedRoot = false) Path configDir, @DefaultConfig(sharedRoot = false) ConfigurationLoader<CommentedConfigurationNode> configLoader, PluginContainer pluginContainer) {
         this.logger = logger;
         this.configDir = configDir;
         this.configLoader = configLoader;
+        this.pluginContainer = pluginContainer;
     }
 
     @Listener
@@ -125,6 +133,11 @@ public class SpongeVotifier {
                 }
 
                 @Override
+                public boolean isLogFailedVotes() {
+                    return config.node("LogFailedVotes").getBoolean(false);
+                }
+
+                @Override
                 public String getVersion() {
                     return "Sponge-Modern-2.0.0-SNAPSHOT";
                 }
@@ -188,7 +201,14 @@ public class SpongeVotifier {
 
                 @Override
                 public void callEvent(Vote vote) {
-                     Sponge.eventManager().post(new VotifierEvent(vote));
+                    Sponge.server().scheduler().submit(Task.builder().execute(() -> {
+                        if (Sponge.server().player(vote.getUsername()).isPresent()) {
+                            Sponge.eventManager().post(new VotifierEvent(vote));
+                        } else {
+                            waitingList.computeIfAbsent(vote.getUsername(), k -> new ArrayList<>()).add(vote);
+                            debug("Player " + vote.getUsername() + " is not online, adding to waiting list");
+                        }
+                    }).plugin(SpongeVotifier.this.pluginContainer).build());
                 }
             };
             voteReceiver.start();
@@ -207,6 +227,35 @@ public class SpongeVotifier {
         logger.info("VotifierPlus disabled.");
     }
 
+    @Listener
+    public void onPlayerJoin(ServerSideConnectionEvent.Join event) {
+        String name = event.player().name();
+        if (waitingList.containsKey(name)) {
+            int delay = config.node("WaitingDelay").getInt(5);
+            if (delay <= 0) {
+                processWaitingVotes(name);
+            } else {
+                Sponge.server().scheduler().submit(Task.builder()
+                        .execute(() -> processWaitingVotes(name))
+                        .delay(delay, TimeUnit.SECONDS)
+                        .plugin(pluginContainer)
+                        .build());
+            }
+        }
+    }
+
+    private void processWaitingVotes(String name) {
+        List<Vote> votes = waitingList.remove(name);
+        if (votes != null) {
+            for (Vote vote : votes) {
+                Sponge.eventManager().post(new VotifierEvent(vote));
+            }
+            if (config.node("Debug").getBoolean(false)) {
+                logger.info("[DEBUG] Processed waiting votes for " + name);
+            }
+        }
+    }
+
     private void loadConfig() {
         try {
             if (!new File(configDir.toFile(), "votifierplus.conf").exists()) {
@@ -214,8 +263,10 @@ public class SpongeVotifier {
                 config.node("Host").set("0.0.0.0");
                 config.node("Port").set(8192);
                 config.node("Debug").set(false);
+                config.node("LogFailedVotes").set(false);
                 config.node("TokenSupport").set(false);
                 config.node("Tokens", "default").set(TokenUtil.newToken());
+                config.node("WaitingDelay").set(5);
                 
                 ConfigurationNode forwarding = config.node("Forwarding", "example");
                 forwarding.node("Enabled").set(false);

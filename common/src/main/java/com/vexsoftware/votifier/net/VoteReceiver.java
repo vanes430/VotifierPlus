@@ -73,6 +73,7 @@ import com.vexsoftware.votifier.ForwardServer;
 import com.vexsoftware.votifier.crypto.RSA;
 import com.vexsoftware.votifier.crypto.TokenUtil;
 import com.vexsoftware.votifier.model.Vote;
+import com.vexsoftware.votifier.util.Debug;
 
 import lombok.Getter;
 
@@ -102,11 +103,10 @@ public abstract class VoteReceiver extends Thread {
 		try {
 			server = new ServerSocket();
 			server.bind(new InetSocketAddress(host, port));
-			debug("Bound to " + server.getInetAddress().getHostAddress() + ":" + server.getLocalPort());
+			Debug.debug("Bound to " + server.getInetAddress().getHostAddress() + ":" + server.getLocalPort());
 		} catch (Exception ex) {
-			logSevere(
-					"Error initializing vote receiver. Please verify that the configured IP address and port are not already in use.");
-			ex.printStackTrace();
+			Debug.error(
+					"Error initializing vote receiver. Please verify that the configured IP address and port are not already in use.", ex);
 			throw new Exception(ex);
 		}
 	}
@@ -118,7 +118,7 @@ public abstract class VoteReceiver extends Thread {
 		try {
 			server.close();
 		} catch (Exception ex) {
-			logWarning("Unable to shut down vote receiver cleanly.");
+			Debug.log("[WARNING] Unable to shut down vote receiver cleanly.");
 		}
 	}
 
@@ -145,7 +145,15 @@ public abstract class VoteReceiver extends Thread {
 	 */
 	private VoteProtocolVersion checkVoteVersion(PushbackInputStream in) throws IOException {
 		byte[] header = new byte[2];
-		int bytesRead = in.read(header);
+		int bytesRead = 0;
+		while (bytesRead < 2) {
+			int result = in.read(header, bytesRead, 2 - bytesRead);
+			if (result == -1) {
+				break;
+			}
+			bytesRead += result;
+		}
+
 		if (bytesRead < 2) {
 			throw new IOException("Not enough data available to determine vote protocol version.");
 		}
@@ -176,9 +184,10 @@ public abstract class VoteReceiver extends Thread {
 	public void run() {
 		while (running) {
 			String address = "";
+			String voteData = null;
 			try (Socket socket = server.accept()) {
 				address = socket.getRemoteSocketAddress().toString();
-				debug("Accepted connection from: " + address);
+				Debug.debug("Accepted connection from: " + address);
 				socket.setSoTimeout(5000);
 				PushbackInputStream in = new PushbackInputStream(socket.getInputStream(), 512);
 				BufferedWriter writer = new BufferedWriter(new OutputStreamWriter(socket.getOutputStream()));
@@ -190,9 +199,9 @@ public abstract class VoteReceiver extends Thread {
 					String handshake = (isUseTokens() ? "VOTIFIER 2 " + challenge : "VOTIFIER 1") + "\n";
 					writer.write(handshake);
 					writer.flush();
-					debug("Sent handshake: " + handshake.trim());
+					Debug.debug("Sent handshake: " + handshake.trim());
 				} else {
-					debug("Immediate data detected (" + in.available() + " bytes), skipping handshake.");
+					Debug.debug("Immediate data detected (" + in.available() + " bytes), skipping handshake.");
 				}
 
 				// Process any proxy headers if available.
@@ -211,7 +220,7 @@ public abstract class VoteReceiver extends Thread {
 				}
 				
 				if (in.available() == 0) {
-					debug("No vote payload received after handshake; closing connection from " + address);
+					Debug.debug("No vote payload received after handshake; closing connection from " + address);
 					writer.close();
 					in.close();
 					socket.close();
@@ -223,19 +232,19 @@ public abstract class VoteReceiver extends Thread {
 				
 				// Handle protocol mismatch: V2 detected but not enabled
 				if (voteProtocolVersion == VoteProtocolVersion.V2 && !isUseTokens()) {
-					logWarning("Detected V2 vote payload from " + address + " but TokenSupport is currently disabled.");
-					logWarning("To support V2 (JSON/Token) votes, please enable 'TokenSupport: true' in your configuration.");
+					Debug.log("[WARNING] " + "Detected V2 vote payload from " + address + " but TokenSupport is currently disabled.");
+					Debug.log("[WARNING] " + "To support V2 (JSON/Token) votes, please enable 'TokenSupport: true' in your configuration.");
 					// Consume and ignore
 					in.skip(in.available());
 					continue;
 				}
 
-				debug("Detected vote protocol version: " + voteProtocolVersion.toString());
-				String voteData = null;
+				Debug.debug("Detected vote protocol version: " + voteProtocolVersion.toString());
+				
 				if (voteProtocolVersion.equals(VoteProtocolVersion.V1)) {
 					byte[] block = new byte[256];
 					int totalRead = 0;
-					debug("Reading V1 vote block (256 bytes expected) from " + address);
+					Debug.debug("Reading V1 vote block (256 bytes expected) from " + address);
 
 					// Wait for the full block
 					long v1Wait = System.currentTimeMillis();
@@ -244,7 +253,7 @@ public abstract class VoteReceiver extends Thread {
 					}
 
 					if (in.available() < 256) {
-						debug("Insufficient data available for V1 vote block; closing connection from " + address);
+						Debug.debug("Insufficient data available for V1 vote block; closing connection from " + address);
 						writer.close();
 						in.close();
 						socket.close();
@@ -261,7 +270,7 @@ public abstract class VoteReceiver extends Thread {
 							try {
 								decrypted = RSA.decrypt(block, getKeyPair().getPrivate());
 							} catch (BadPaddingException e) {
-								logWarning("Decryption failed for " + address + ". The public key likely does not match or the data is corrupt.");
+								Debug.log("[WARNING] " + "Decryption failed for " + address + ". The public key likely does not match or the data is corrupt.");
 								writer.close();
 								in.close();
 								socket.close();
@@ -283,9 +292,9 @@ public abstract class VoteReceiver extends Thread {
 							position += timeStamp.length() + 1;
 							voteData = "VOTE\n" + serviceName + "\n" + username + "\n" + address1 + "\n" + timeStamp
 									+ "\n";
-							debug("Processed V1 vote block.");
+							Debug.debug("Processed V1 vote block.");
 						} else {
-							debug("Failed to read V1 vote, expected 256 bytes, got " + totalRead);
+							Debug.debug("Failed to read V1 vote, expected 256 bytes, got " + totalRead);
 							continue;
 						}
 					}
@@ -303,7 +312,7 @@ public abstract class VoteReceiver extends Thread {
 						byte[] lenBytes = new byte[2];
 						in.read(lenBytes);
 						length = ((lenBytes[0] & 0xFF) << 8) | (lenBytes[1] & 0xFF);
-						debug("NuVotifier V2 magic detected, expected length: " + length);
+						Debug.debug("NuVotifier V2 magic detected, expected length: " + length);
 						
 						byte[] buffer = new byte[length];
 						int totalRead = 0;
@@ -333,7 +342,7 @@ public abstract class VoteReceiver extends Thread {
 					}
 					
 					voteData = voteDataStream.toString("UTF-8").trim();
-					debug("Received raw V2 vote payload: [" + voteData + "]");
+					Debug.debug("Received raw V2 vote payload: [" + voteData + "]");
 				}
 
 				// --- Parse Vote Data (V2 JSON mode) ---
@@ -353,7 +362,7 @@ public abstract class VoteReceiver extends Thread {
 								"Expected JSON-formatted vote payload, got: " + voteData + " from " + address);
 					}
 					String jsonPayloadRaw = voteData.substring(jsonStart, jsonEnd + 1).trim();
-					debug("Extracted raw JSON payload: [" + jsonPayloadRaw + "]");
+					Debug.debug("Extracted raw JSON payload: [" + jsonPayloadRaw + "]");
 
 					// Check if the JSON payload is an array and, if so, extract the first object.
 					JsonObject voteMessage;
@@ -388,7 +397,7 @@ public abstract class VoteReceiver extends Thread {
 					}
 
 					// Debug: log the payload string and its computed HMAC for comparison.
-					debug("Inner payload string: [" + payload + "]");
+					Debug.debug("Inner payload string: [" + payload + "]");
 
 					// Verify HMAC signature using the payload bytes.
 					if (!hmacEqual(sigBytes, payload.getBytes(StandardCharsets.UTF_8), key)) {
@@ -430,9 +439,9 @@ public abstract class VoteReceiver extends Thread {
 					vote.setSourceAddress("unknown");
 				}
 				if (timeStamp.equalsIgnoreCase("TestVote")) {
-					log("Test vote received");
+					Debug.log("Test vote received");
 				}
-				log("Received vote record -> " + vote);
+				Debug.log("Received vote record -> " + vote);
 
 				// Send OK response.
 				if (!timeStamp.equalsIgnoreCase("TestVote")) {
@@ -442,9 +451,9 @@ public abstract class VoteReceiver extends Thread {
 						String okMessage = gson.toJson(okResponse) + "\r\n";
 						writer.write(okMessage);
 						writer.flush();
-						debug("Sent OK response: " + okMessage);
+						Debug.debug("Sent OK response: " + okMessage);
 					} catch (Exception e) {
-						debug("Failed to send OK response, but will continue to process vote: "
+						Debug.debug("Failed to send OK response, but will continue to process vote: "
 								+ e.getLocalizedMessage());
 					}
 				}
@@ -456,39 +465,46 @@ public abstract class VoteReceiver extends Thread {
 				in.close();
 				socket.close();
 			} catch (MalformedJsonException ex) {
-				logWarning("Malformed JSON payload received from: " + address + " - " + ex.getMessage());
-				debug(ex);
+				if (isLogFailedVotes()) Debug.logFailedVote(address, "Malformed JSON: " + ex.getMessage(), voteData);
+				Debug.log("[WARNING] " + "Malformed JSON payload received from: " + address + " - " + ex.getMessage());
+				Debug.error("Socket error", ex);
 			} catch (SocketException ex) {
 				if (running) {
-					logWarning("Protocol error from: " + address + " - " + ex.getLocalizedMessage());
-					debug(ex);
+					if (isLogFailedVotes()) Debug.logFailedVote(address, "Socket Error: " + ex.getMessage(), voteData);
+					Debug.log("[WARNING] " + "Protocol error from: " + address + " - " + ex.getLocalizedMessage());
+					Debug.error("Socket error", ex);
 				} else {
-					logWarning("Votifier socket closed.");
+					Debug.log("[WARNING] " + "Votifier socket closed.");
 				}
 			} catch (BadPaddingException ex) {
+				if (isLogFailedVotes()) Debug.logFailedVote(address, "Decryption Failed (BadPadding)", voteData);
 				// Handled locally in V1 block, but here for safety
-				logWarning("Unable to decrypt vote record from: " + address);
+				Debug.log("[WARNING] " + "Unable to decrypt vote record from: " + address);
 			} catch (SocketTimeoutException ex) {
-				logWarning("Socket timeout while waiting for vote payload from: " + address + " - " + ex.getMessage());
-				debug(ex);
+				if (isLogFailedVotes()) Debug.logFailedVote(address, "Socket Timeout", voteData);
+				Debug.log("[WARNING] " + "Socket timeout while waiting for vote payload from: " + address + " - " + ex.getMessage());
+				Debug.error("Socket error", ex);
 			} catch (Exception ex) {
-				logWarning("Exception caught while receiving a vote notification from: " + address + " - "
+				if (isLogFailedVotes()) Debug.logFailedVote(address, "Exception: " + ex.getMessage(), voteData);
+				Debug.log("[WARNING] " + "Exception caught while receiving a vote notification from: " + address + " - "
 						+ ex.getLocalizedMessage());
-				debug(ex);
+				Debug.error("Socket error", ex);
 			}
 		}
 	}
+
+	public abstract boolean isLogFailedVotes();
 
 	private void forwardVote(Vote vote) {
 		for (String name : getServers()) {
 			ForwardServer fs = getServerData(name);
 
 			if (!fs.isEnabled()) {
-				debug("Skipping disabled forward server: " + name);
+				Debug.debug("Skipping disabled forward server: " + name);
 				continue;
 			}
 
-			debug("Preparing to forward vote to: " + name + ", tokens mode: " + fs.isUseTokens());
+			Debug.debug("Preparing to forward vote to: " + name + ", tokens mode: " + fs.isUseTokens());
 
 			try (Socket s = new Socket()) {
 				s.connect(new InetSocketAddress(fs.getHost(), fs.getPort()), 1000);
@@ -498,7 +514,7 @@ public abstract class VoteReceiver extends Thread {
 
 				// --- Handshake: read server greeting (v2) ---
 				String serverGreeting = in.readLine();
-				debug("Received handshake from " + name + ": '" + serverGreeting + "'");
+				Debug.debug("Received handshake from " + name + ": '" + serverGreeting + "'");
 
 				byte[] payload;
 				if (fs.isUseTokens()) {
@@ -551,11 +567,11 @@ public abstract class VoteReceiver extends Thread {
 				// Send the vote payload
 				outStream.write(payload);
 				outStream.flush();
-				debug("Payload forwarded to " + name + " (" + payload.length + " bytes)");
+				Debug.debug("Payload forwarded to " + name + " (" + payload.length + " bytes)");
 
 			} catch (Exception e) {
-				log("Failed to forward vote to " + name + ": " + e.getClass().getSimpleName() + " – " + e.getMessage());
-				debug(e);
+				Debug.log("Failed to forward vote to " + name + ": " + e.getClass().getSimpleName() + " – " + e.getMessage());
+				Debug.error("Error", e);
 			}
 		}
 	}
@@ -657,7 +673,7 @@ public abstract class VoteReceiver extends Thread {
 						break;
 				}
 				String proxyHeader = headerLine.toString("ASCII").trim();
-				debug("Discarded PROXY (v1) header: " + proxyHeader);
+				Debug.debug("Discarded PROXY (v1) header: " + proxyHeader);
 			} else if (bytesRead >= 12 && isProxyV2(headerPeek)) {
 				int addrLength = ((headerPeek[14] & 0xFF) << 8) | (headerPeek[15] & 0xFF);
 				int totalV2HeaderLength = 16 + addrLength;
@@ -673,14 +689,14 @@ public abstract class VoteReceiver extends Thread {
 				if (readRemaining != remaining) {
 					throw new Exception("Incomplete PROXY protocol v2 header");
 				}
-				debug("Discarded PROXY protocol v2 header (" + totalV2HeaderLength + " bytes)");
+				Debug.debug("Discarded PROXY protocol v2 header (" + totalV2HeaderLength + " bytes)");
 			} else if (headerString.startsWith("CONNECT")) {
 				in.unread(headerPeek, 0, bytesRead);
 				String connectLine = readLine(in);
-				debug("Received CONNECT request: " + connectLine);
+				Debug.debug("Received CONNECT request: " + connectLine);
 				String line;
 				while (!(line = readLine(in)).isEmpty()) {
-					debug("Discarding header: " + line);
+					Debug.debug("Discarding header: " + line);
 				}
 				writer.write("HTTP/1.1 200 Connection Established\r\n\r\n");
 				writer.flush();

@@ -35,7 +35,11 @@ public class Config {
     @Getter
     private boolean tokenSupport;
     @Getter
+    private boolean logFailedVotes;
+    @Getter
     private int autoClearDelay;
+    @Getter
+    private int waitingDelay;
 
     public Config(VotifierPlus plugin) {
         this.plugin = plugin;
@@ -66,6 +70,10 @@ public class Config {
                 writer.println("# INFO will show basic vote logging, EXTRA will show data packets.");
                 writer.println("DebugLevel: NONE");
                 writer.println("");
+                writer.println("# Log failed vote attempts to 'failed-votes.log'.");
+                writer.println("# Useful for manual compensation if votes are dropped.");
+                writer.println("LogFailedVotes: false");
+                writer.println("");
                 writer.println("# Experimental: Enable V2 Token support (NuVotifier compatible).");
                 writer.println("TokenSupport: false");
                 writer.println("");
@@ -76,6 +84,10 @@ public class Config {
                 writer.println("# Automatically clear the offline waiting list every X seconds.");
                 writer.println("# Default: 7200 (2 hours). Set to 0 to disable.");
                 writer.println("AutoClearDelay: 7200");
+                writer.println("");
+                writer.println("# Delay in seconds before processing waiting votes when a player joins.");
+                writer.println("# Default: 5 seconds.");
+                writer.println("WaitingDelay: 5");
                 writer.println("");
                 writer.println("# Vote Forwarding: Send received votes to other servers.");
                 writer.println("Forwarding:");
@@ -145,7 +157,9 @@ public class Config {
         this.helpLine = config.getString("Format.HelpLine", "&3&l%Command% - &3%HelpMessage%");
         this.disableUpdateChecking = config.getBoolean("DisableUpdateChecking", false);
         this.tokenSupport = config.getBoolean("TokenSupport", false);
+        this.logFailedVotes = config.getBoolean("LogFailedVotes", false);
         this.autoClearDelay = config.getInt("AutoClearDelay", 7200);
+        this.waitingDelay = config.getInt("WaitingDelay", 5);
     }
 
     public ConfigurationSection getForwardingConfiguration(String s) {
