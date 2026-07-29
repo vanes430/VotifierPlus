@@ -1,0 +1,12 @@
+/bin/
+/target/
+/doc/
+/.idea/
+/*.iml
+/.settings/
+/.classpath
+/.project
+/.apt_generated_tests/
+/build/
+/.gradle/
+/.omo/

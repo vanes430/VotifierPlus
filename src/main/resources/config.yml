@@ -1,0 +1,121 @@
+# =============================================================================
+# VOTIFIERPLUS CONFIGURATION
+# =============================================================================
+# Shared between Paper (Bukkit) and Velocity.
+# Each platform reads its own section and ignores the other.
+# =============================================================================
+
+# =============================================================================
+# GLOBAL SETTINGS (Paper + Velocity)
+# =============================================================================
+
+# Host address to bind the vote receiver. Use 0.0.0.0 for all interfaces.
+host: 0.0.0.0
+
+# TCP port for the vote receiver. Must match your voting service.
+port: 8192
+
+# V2 token-based authentication (HMAC challenge-response).
+# false = V1 only (RSA encryption, compatible with all vote services)
+# true  = V2 enabled (requires token in payload)
+TokenSupport: false
+
+# Debug verbosity (Paper + Velocity).
+# NONE  = No debug messages (production)
+# INFO  = Basic connection/vote logging
+# EXTRA = Detailed debug (protocol, throttling decisions)
+# DEV   = Full internal state
+DebugLevel: NONE
+
+# =============================================================================
+# PAPER-SPECIFIC SETTINGS
+# =============================================================================
+
+# Ticks to wait before delivering pending offline votes when a player joins.
+# This gives other plugins time to fully initialize the player.
+# Minimum: 20 (1 second). Values below 20 are forced to 20.
+PendingVoteDelay: 20
+
+# =============================================================================
+# GLOBAL: Connection Throttling (Paper + Velocity)
+# =============================================================================
+# Protects against scanners, brute-force RSA attempts, and spam.
+# All time values: ms, s, m, h, d  (e.g. 30s, 2m, 10m, 1h)
+
+ConnectionThrottle:
+
+  # Master switch
+  Enabled: false
+
+  # IPs treated as tunnel endpoints (playit.gg, ngrok, etc).
+  # Connections from these IPs get more aggressive throttle thresholds.
+  TunnelRemoteIps:
+    - "127.0.0.1"
+
+  # Sliding failure window
+  Window: "2m"
+
+  # Failures within window before throttling
+  # Counts: invalid V1 block size, RSA bad padding, malformed JSON,
+  #         invalid HMAC signature, authentication failure
+  Failures: 20
+
+  # Block duration when throttled
+  ThrottleFor: "5m"
+
+  # Tunnel-mode overrides (scanners share one tunnel IP)
+  TunnelFailures: 8
+  TunnelThrottleFor: "10m"
+
+  # Per-client temp ban (same IP repeatedly failing)
+  PerClientBan:
+    Enabled: true
+    Failures: 6
+    BanFor: "15m"
+
+  # Log rate limiting — one warning per (IP + error type) per window
+  LogWindow: "60s"
+
+# =============================================================================
+# GLOBAL: Vote Forwarding (Paper + Velocity)
+# =============================================================================
+# Forwards received votes to one or more downstream Votifier servers.
+#
+# When does this matter?
+#   - If you have a multi-server network (Velocity/Bungee backend servers),
+#     a vote arrives at one proxy but needs to be processed on a specific
+#     server (e.g. a hub or minigame server). Forwarding sends the vote
+#     there automatically.
+#   - Each server entry represents one target Votifier server to forward to.
+#
+# How it works:
+#   1. VotifierPlus receives a vote on its socket
+#   2. It calls VotifierEvent locally (so local plugins can react)
+#   3. It encrypts the vote payload with the target server's RSA public key
+#   4. Connects to the target's host:port and sends the encrypted payload
+#
+# You need this if:
+#   - Running VotingPlugin on a backend server (not the proxy/edge server)
+#   - Multiple servers need to receive the same vote
+#   - Using a load balancer where vote destination is unpredictable
+#
+# You DON'T need this if:
+#   - Votes are processed on the same server where Votifier receives them
+#   - Using VotingPlugin's built-in MySQL sharing (it syncs votes via DB)
+#
+# Each entry:
+#   Enabled: true/false
+#   Host   : IP/hostname of the target Votifier server
+#   Port   : Votifier port on the target (default 8192)
+#   Key    : Base64 RSA public key from target's plugins/VotifierPlus/rsa/public.key
+#   Token  : V2 token if TokenSupport is enabled on target (leave "" for V1 only)
+#
+# To add more servers, copy the server1 block and increment the number.
+
+Forwarding:
+  server1:
+    Enabled: false
+    Host: ""
+    Port: 8193
+    Key: ""
+    Token: ""

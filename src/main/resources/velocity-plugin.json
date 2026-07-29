@@ -1,0 +1,8 @@
+{
+    "id": "votifierplus",
+    "name": "VotifierPlus",
+    "version": "${version}",
+    "description": "A plugin that receives and forwards Minecraft server votes.",
+    "url": "https://www.spigotmc.org/resources/votifierplus.74040",
+    "authors": ["BenCodez", "vanes430"]
+}

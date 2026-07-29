@@ -1,0 +1,12 @@
+name: '${name}'
+main: com.vexsoftware.votifier.paper.VotifierPlus
+version: '${version}'
+description: A plugin that gets notified when votes are made for the server on toplists.
+author: BenCodez, vanes430
+api-version: '1.21'
+provides:
+- Votifier
+folia-supported: true
+commands:
+  votifierplus:
+    description: main command

@@ -1,0 +1,16 @@
+[versions]
+paper = "1.21.1-R0.1-SNAPSHOT"
+velocity = "3.4.0-SNAPSHOT"
+configurate = "4.1.2"
+spotless = "8.9.0"
+shadow = "9.6.1"
+
+[libraries]
+paper-api = { group = "io.papermc.paper", name = "paper-api", version.ref = "paper" }
+velocity-api = { group = "com.velocitypowered", name = "velocity-api", version.ref = "velocity" }
+configurate-core = { group = "org.spongepowered", name = "configurate-core", version.ref = "configurate" }
+configurate-yaml = { group = "org.spongepowered", name = "configurate-yaml", version.ref = "configurate" }
+
+[plugins]
+spotless = { id = "com.diffplug.spotless", version.ref = "spotless" }
+shadow = { id = "com.gradleup.shadow", version.ref = "shadow" }

@@ -1,0 +1,185 @@
+/*
+ * Derived from original Votifier VoteReceiver (GPLv3).
+ * Refactored into a dedicated component by BenCodez.
+ *
+ * See VoteReceiver for full modification summary.
+ */
+package com.vexsoftware.votifier.common.net;
+
+import java.io.BufferedWriter;
+import java.io.OutputStreamWriter;
+import java.io.PushbackInputStream;
+import java.net.Socket;
+import java.net.SocketException;
+import java.net.SocketTimeoutException;
+
+import javax.crypto.BadPaddingException;
+
+import com.google.gson.JsonObject;
+import com.google.gson.stream.MalformedJsonException;
+import com.vexsoftware.votifier.model.Vote;
+
+public class VoteConnectionHandler {
+
+	private final VoteReceiver receiver;
+	private final VoteThrottleService throttleService;
+	private final VoteParser voteParser;
+
+	public VoteConnectionHandler(VoteReceiver receiver, VoteThrottleService throttleService) {
+		this.receiver = receiver;
+		this.throttleService = throttleService;
+		this.voteParser = new VoteParser();
+	}
+
+	public Vote handle(Socket socket) {
+		String remoteIp = "unknown";
+		String address = "";
+		String throttleKey = null;
+		boolean tunnelMode = false;
+
+		try (Socket accepted = socket;
+				PushbackInputStream in = new PushbackInputStream(accepted.getInputStream(), 512);
+				BufferedWriter writer = new BufferedWriter(new OutputStreamWriter(accepted.getOutputStream()))) {
+
+			remoteIp = accepted.getInetAddress().getHostAddress();
+			address = accepted.getRemoteSocketAddress() == null ? "/" + remoteIp
+					: accepted.getRemoteSocketAddress().toString();
+
+			receiver.debug("Accepted connection from: " + address);
+			accepted.setSoTimeout(5000);
+
+			String challenge = receiver.getChallenge();
+			sendHandshakeIfNeeded(in, writer, challenge);
+
+			if (!waitForPayload(in, accepted, address)) {
+				return null;
+			}
+
+			tunnelMode = throttleService.isTunnelMode(remoteIp);
+			throttleKey = "ip:" + remoteIp;
+
+			if (throttleService.isBlocked(throttleKey)) {
+				long retry = throttleService.retryAfterMs(throttleKey);
+				throttleService.logWarning(receiver, "throttle|" + throttleKey, "Votifier throttling " + throttleKey
+						+ " (tunnel=" + tunnelMode + "), retry in " + Math.max(0, retry / 1000) + "s");
+				return null;
+			}
+
+			VoteProtocolVersion version = voteParser.detectVersion(in);
+			receiver.debug("Detected vote protocol version: " + version);
+
+			if (version == VoteProtocolVersion.V1 && in.available() < 256) {
+				throttleService.fail(throttleKey, tunnelMode, false);
+				throttleService.logWarning(receiver, "shortv1|" + throttleKey,
+						"Invalid vote format: Insufficient data for V1 vote block from "
+								+ remoteIp + " (expected 256 bytes)");
+				return null;
+			}
+
+			VoteRequest request = voteParser.parse(in, version, receiver, address, challenge);
+
+			Vote vote = new Vote();
+			vote.setServiceName(request.serviceName());
+			vote.setUsername(request.username());
+			vote.setAddress(request.address());
+			vote.setTimeStamp(request.timeStamp());
+			vote.setSourceAddress(remoteIp);
+
+			if ("TestVote".equalsIgnoreCase(vote.getTimeStamp())) {
+				receiver.log("Test vote received");
+			}
+
+			receiver.log("Received vote record -> " + vote);
+			throttleService.success(throttleKey);
+
+			if (!"TestVote".equalsIgnoreCase(vote.getTimeStamp())) {
+				sendOkResponse(writer);
+			}
+
+			return vote;
+		} catch (InvalidVoteException ex) {
+			if (throttleKey == null) throttleKey = "ip:" + remoteIp;
+			throttleService.fail(throttleKey, tunnelMode, false);
+			throttleService.logWarning(receiver, "invalid|" + throttleKey,
+					"Invalid vote format from " + remoteIp + ": " + ex.getMessage());
+		} catch (VoteAuthenticationException ex) {
+			if (throttleKey == null) throttleKey = "ip:" + remoteIp;
+			throttleService.fail(throttleKey, tunnelMode, false);
+			throttleService.logWarning(receiver, "auth|" + throttleKey,
+					"Authentication failed from " + remoteIp + ": " + ex.getMessage());
+		} catch (MalformedJsonException ex) {
+			if (throttleKey == null) throttleKey = "ip:" + remoteIp;
+			throttleService.fail(throttleKey, tunnelMode, false);
+			throttleService.logWarning(receiver, "malformedjson|" + throttleKey,
+					"Invalid vote format: Malformed JSON payload from " + remoteIp + " - " + ex.getMessage());
+		} catch (BadPaddingException ex) {
+			if (throttleKey == null) throttleKey = "ip:" + remoteIp;
+			throttleService.fail(throttleKey, tunnelMode, false);
+			throttleService.logWarning(receiver, "badpadding|" + throttleKey,
+					"Decryption failed: Invalid V1 vote block / public key mismatch from " + remoteIp);
+		} catch (SocketTimeoutException ex) {
+			throttleService.logWarning(receiver, "timeout|" + remoteIp,
+					"Connection timeout while waiting for vote payload from " + remoteIp + " - " + ex.getMessage());
+		} catch (SocketException ex) {
+			throttleService.logWarning(receiver, "socket|" + remoteIp,
+					"Connection error: Protocol error from " + remoteIp + " - " + ex.getLocalizedMessage());
+		} catch (Exception ex) {
+			throttleService.logWarning(receiver, "generic|" + remoteIp, "Error processing vote from " + remoteIp + ": "
+					+ (ex.getLocalizedMessage() == null ? ex.getClass().getSimpleName() : ex.getLocalizedMessage()));
+		}
+
+		return null;
+	}
+
+	private void sendHandshakeIfNeeded(PushbackInputStream in, BufferedWriter writer, String challenge)
+			throws Exception {
+		String message = receiver.isUseTokens() ? "VOTIFIER 2" : "VOTIFIER 1";
+		if (receiver.isUseTokens()) {
+			message += " " + challenge;
+		}
+
+		int available = in.available();
+		if (available >= 256) {
+			receiver.debug("Detected V1 vote payload before handshake (available bytes: " + available
+					+ "), skipping handshake.");
+			return;
+		}
+
+		writer.write(message);
+		writer.newLine();
+		writer.flush();
+		receiver.debug("Sent handshake: " + message);
+	}
+
+	private boolean waitForPayload(PushbackInputStream in, Socket socket, String address) throws Exception {
+		int previousTimeout = socket.getSoTimeout();
+
+		try {
+			socket.setSoTimeout(2000);
+			int firstByte = in.read();
+			if (firstByte == -1) {
+				receiver.debug("Connection closed without payload from " + address);
+				return false;
+			}
+
+			in.unread(firstByte);
+			return true;
+		} finally {
+			socket.setSoTimeout(previousTimeout);
+		}
+	}
+
+	private void sendOkResponse(BufferedWriter writer) {
+		try {
+			JsonObject okResponse = new JsonObject();
+			okResponse.addProperty("status", "ok");
+			String okMessage = okResponse.toString() + "\r\n";
+			writer.write(okMessage);
+			writer.flush();
+			receiver.debug("Sent OK response: " + okMessage);
+		} catch (Exception ex) {
+			receiver.debug(
+					"Failed to send OK response, but will continue to process vote: " + ex.getLocalizedMessage());
+		}
+	}
+}
