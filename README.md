@@ -7,6 +7,8 @@
 
 **VotifierPlus** listens for Minecraft server votes and fires Bukkit/Velocity events so other plugins can react. Drop-in replacement for legacy Votifier — no code changes required for existing vote listener plugins.
 
+Fork of [BenCodez/VotifierPlus](https://github.com/BenCodez/VotifierPlus), itself a fork of the original [Votifier](https://github.com/vexsoftware/votifier) by Vex Software LLC.
+
 ## Features
 
 - **Dual protocol** — V1 (RSA) and V2 (HMAC token) simultaneously
