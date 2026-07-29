@@ -5,9 +5,21 @@
 [![Paper](https://img.shields.io/badge/Paper-1.21.1%2B-green)](https://papermc.io/)
 [![Velocity](https://img.shields.io/badge/Velocity-3.4.0%2B-blueviolet)](https://velocitypowered.com/)
 
-**VotifierPlus** listens for Minecraft server votes and fires Bukkit/Velocity events so other plugins can react. Drop-in replacement for legacy Votifier — no code changes required for existing vote listener plugins.
+**VotifierPlus** listens for Minecraft server votes and fires Bukkit/Velocity events so other plugins can react. Drop-in replacement for Votifier, NuVotifier, and existing VotifierPlus installations — no code changes required.
 
 Fork of [BenCodez/VotifierPlus](https://github.com/BenCodez/VotifierPlus), itself a fork of the original [Votifier](https://github.com/vexsoftware/votifier) by Vex Software LLC.
+
+## Compatibility
+
+VotifierPlus is a **drop-in replacement** for:
+
+| Project | Socket Protocol | Plugin Events | Config |
+|---|---|---|---|
+| [Votifier](https://github.com/vexsoftware/votifier) (original) | V1 (RSA) ✓ | `com.vexsoftware.votifier.model.VotifierEvent` ✓ | — |
+| [BenCodez/VotifierPlus](https://github.com/BenCodez/VotifierPlus) | V1 + V2 ✓ | Same package + `paper.events.VotifierEvent` ✓ | `config.yml` ✓ |
+| [NuVotifier](https://github.com/NuVotifier/NuVotifier) | V1 (RSA) ✓ | N/A (no Bukkit events) | — |
+
+Existing vote listener plugins **do not need code changes** — just swap the JAR and restart.
 
 ## Features
 
